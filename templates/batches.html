@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}Batch Stocks{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header" style="display: flex; flex-direction: column; gap: 16px; align-items: stretch;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Batch Stocks</h3>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                {% if has_permission('reports_download') %}
+                <div style="position: relative; display: inline-block;" id="batchExportWrap">
+                    <button type="button" class="btn-action-outline" onclick="toggleBatchExportMenu(event)" style="height: 32px; padding: 0 14px; font-size: 12px; border-radius: 16px; color: var(--accent, #c0392b); border: 1.5px solid var(--accent, #c0392b); background: transparent; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600;">
+                        <i class="fa-solid fa-file-arrow-down"></i> Export Report <i class="fa-solid fa-chevron-down" style="font-size: 9px; margin-left: 2px;"></i>
+                    </button>
+                    <div id="batchExportDropdown" style="display: none; position: absolute; right: 0; top: 38px; background: var(--card-bg, #ffffff); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100; min-width: 175px; padding: 4px 0;">
+                        <form action="{{ url_for('download_report') }}" method="POST" style="margin: 0;">
+                            <input type="hidden" name="report_type" value="batch_stocks">
+                            <input type="hidden" name="frequency" value="all">
+                            <input type="hidden" name="format" value="excel">
+                            <button type="submit" style="width: 100%; text-align: left; padding: 8px 14px; background: none; border: none; font-size: 11.5px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='var(--bg-hover, rgba(0,0,0,0.04))'" onmouseout="this.style.background='none'">
+                                <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Download Excel (.xlsx)
+                            </button>
+                        </form>
+                        <form action="{{ url_for('download_report') }}" method="POST" style="margin: 0;">
+                            <input type="hidden" name="report_type" value="batch_stocks">
+                            <input type="hidden" name="frequency" value="all">
+                            <input type="hidden" name="format" value="pdf">
+                            <button type="submit" style="width: 100%; text-align: left; padding: 8px 14px; background: none; border: none; font-size: 11.5px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='var(--bg-hover, rgba(0,0,0,0.04))'" onmouseout="this.style.background='none'">
+                                <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> Download PDF (.pdf)
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+                <span class="list-count-badge">
+                    {{ items | length }} batch(es)
+                </span>
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%;">
+            <div class="search-input" style="margin-bottom: 0; max-width: 320px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="search-input" placeholder="Search products" onkeyup="filterTable()" oninput="filterTable()">
+            </div>
+            <div class="filter-container">
+                <i class="fa-solid fa-filter"></i>
+                <select id="filter-status" class="filter-select" onchange="filterTable()">
+                    <option value="">All Statuses</option>
+                    <option value="Good Stock">Good Stock</option>
+                    <option value="Low Stock">Low Stock</option>
+                    <option value="Empty">Empty</option>
+                </select>
+                <span style="color: var(--border-light); font-size: 14px; user-select: none; margin: 0 4px;">|</span>
+                <select id="filter-category" class="filter-select" onchange="filterTable()">
+                    <option value="">All Categories</option>
+                    {% for cat in items | map(attribute='category') | unique | sort %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Batch ID</th>
+                <th>Medicine</th>
+                <th>Expiry Date</th>
+                <th>Current Quantity</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set low_threshold = (app_settings.get('low_stock_threshold', '40') | int) if app_settings else 40 %}
+            {% for item in items %}
+            <tr data-brand="{{ item.medicine | lower }}" data-batch="{{ item.batch_id | lower }}" data-category="{{ item.category | lower }}" data-status="{% if item.current_qty > low_threshold %}Good Stock{% elif item.current_qty > 0 %}Low Stock{% else %}Empty{% endif %}">
+                <td>{{ item.batch_id }}</td>
+                <td>{{ item.medicine }}</td>
+                <td>{{ item.expiry_date }}</td>
+                <td>{{ item.current_qty }}</td>
+                <td>
+                    {% if item.current_qty > low_threshold %}
+                        <span class="status-badge status-good">Good Stock</span>
+                    {% elif item.current_qty > 0 %}
+                        <span class="status-badge status-low-stock">Low Stock</span>
+                    {% else %}
+                        <span class="status-badge status-empty">Empty</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function filterTable() {
+        const search = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+        const status = document.getElementById('filter-status')?.value || '';
+        const category = (document.getElementById('filter-category')?.value || '').toLowerCase();
+        const table = document.querySelector('table');
+
+        document.querySelectorAll('tbody tr').forEach(row => {
+            const brand = row.dataset.brand || '';
+            const batch = row.dataset.batch || '';
+            const rStatus = row.dataset.status || '';
+            const rCategory = row.dataset.category || '';
+            
+            const matchesSearch = !search || brand.includes(search) || batch.includes(search);
+            const matchesStatus = !status || rStatus === status;
+            const matchesCategory = !category || rCategory === category;
+            
+            const isMatch = matchesSearch && matchesStatus && matchesCategory;
+            row.dataset.filteredHidden = isMatch ? 'false' : 'true';
+            row.style.display = isMatch ? '' : 'none';
+        });
+
+        if (table && table.rePaginate) {
+            table.rePaginate();
+        }
+    }
+
+    function toggleBatchExportMenu(e) {
+        e.stopPropagation();
+        const dd = document.getElementById('batchExportDropdown');
+        if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+    }
+    document.addEventListener('click', (e) => {
+        const wrap = document.getElementById('batchExportWrap');
+        const dd = document.getElementById('batchExportDropdown');
+        if (dd && wrap && !wrap.contains(e.target)) {
+            dd.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', filterTable);
+        }
+    });
+</script>
+{% endblock %}
