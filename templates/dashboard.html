@@ -1,0 +1,393 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card" onclick="window.location.href='{{ url_for('inventory') }}'" style="cursor: pointer;">
+        <div class="stat-info">
+            <p>Total Products</p>
+            <h3>{{ total_medicines }}</h3>
+        </div>
+        <div class="stat-icon icon-gray"><i class="fa-solid fa-pills"></i></div>
+    </div>
+    <div class="stat-card" onclick="window.location.href='{{ url_for('inventory') }}'" style="cursor: pointer;">
+        <div class="stat-info">
+            <p>Low Stock</p>
+            <h3>{{ low_stock }}</h3>
+        </div>
+        <div class="stat-icon icon-red"><i class="fa-solid fa-triangle-exclamation"></i></div>
+    </div>
+    <div class="stat-card" onclick="window.location.href='{{ url_for('expiry_monitoring') }}'" style="cursor: pointer;">
+        <div class="stat-info">
+            <p>Near Expiry</p>
+            <h3>{{ near_expiry }}</h3>
+        </div>
+        <div class="stat-icon icon-yellow"><i class="fa-solid fa-exclamation"></i></div>
+    </div>
+    <div class="stat-card" onclick="window.location.href='{{ url_for('sales') }}'" style="cursor: pointer;">
+        <div class="stat-info">
+            <p>Transactions Recorded</p>
+            <h3>{{ sales_recorded }}</h3>
+        </div>
+        <div class="stat-icon icon-gray"><i class="fa-solid fa-file-invoice-dollar"></i></div>
+    </div>
+    <div class="stat-card" onclick="window.location.href='{{ url_for('purchase_orders') }}'" style="cursor: pointer;">
+        <div class="stat-info">
+            <p>PO for Receiving</p>
+            <h3>{{ po_receiving }}</h3>
+        </div>
+        <div class="stat-icon icon-gray"><i class="fa-solid fa-cart-shopping"></i></div>
+    </div>
+</div>
+
+{% if pending_expiry and pending_expiry > 0 %}
+<div id="pending-expiry-banner" style="
+    display:flex; align-items:center; gap:14px;
+    background:rgba(245,158,11,0.10);
+    border:1.5px solid rgba(245,158,11,0.38);
+    border-radius:14px; padding:14px 18px; margin-bottom:20px;">
+    <div style="width:40px;height:40px;border-radius:11px;background:rgba(245,158,11,0.20);
+                display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="fa-solid fa-calendar-exclamation" style="color:#d97706;font-size:17px;"></i>
+    </div>
+    <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;color:#92400e;">
+            {{ pending_expiry }} batch{{ 'es' if pending_expiry > 1 else '' }} missing expiry date{{ 's' if pending_expiry > 1 else '' }}
+        </div>
+        <div style="font-size:12px;color:#b45309;margin-top:2px;line-height:1.5;">
+            Products were received but their expiry dates were skipped. Please fill them in as soon as possible.
+        </div>
+    </div>
+    <a href="{{ url_for('expiry_monitoring') }}"
+        style="white-space:nowrap;padding:8px 18px;border-radius:9999px;
+               background:#d97706;color:#fff;font-size:12px;font-weight:700;
+               text-decoration:none;display:inline-flex;align-items:center;gap:7px;flex-shrink:0;"
+        onmouseover="this.style.background='#b45309'"
+        onmouseout="this.style.background='#d97706'">
+        <i class="fa-solid fa-arrow-right-to-bracket"></i> Fill In Now
+    </a>
+    <button onclick="document.getElementById('pending-expiry-banner').style.display='none'"
+        title="Dismiss until next refresh"
+        style="background:none;border:none;cursor:pointer;color:#b45309;
+               font-size:16px;padding:4px 6px;line-height:1;flex-shrink:0;">
+        <i class="fa-solid fa-xmark"></i>
+    </button>
+</div>
+{% endif %}
+
+<div class="grid-2" style="margin-bottom: 22px;">
+    <div class="panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+                <h3 class="panel-title" style="margin-bottom: 2px; display: flex; align-items: center; gap: 7px;"><i class="fa-solid fa-chart-line" style="color: #3b82f6;"></i> Transactions Report</h3>
+                <p style="font-size: 11px; color: var(--text-secondary); margin: 0;">Transaction quantity over time</p>
+            </div>
+            <select class="form-control" id="salesPeriodSelect" style="width: auto; padding: 5px 12px; font-size: 12px; border-radius: 8px; height: 32px; min-width: 115px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text); font-family: inherit;">
+                <option value="this_week">This Week</option>
+                <option value="last_week">Last Week</option>
+                <option value="monthly">Monthly</option>
+                <option value="annual">Annual</option>
+            </select>
+        </div>
+        <div style="position: relative; height: 220px; width: 100%;">
+            <canvas id="salesTrendChart"></canvas>
+        </div>
+    </div>
+    
+    <div class="panel">
+        <div style="margin-bottom: 16px;">
+            <h3 class="panel-title" style="margin-bottom: 2px; display: flex; align-items: center; gap: 7px;"><i class="fa-solid fa-chart-bar" style="color: #0d9488;"></i> Stock Levels by Product</h3>
+            <p style="font-size: 11px; color: var(--text-secondary); margin: 0;">Current inventory stock per medicine</p>
+        </div>
+        <div style="position: relative; height: 220px; width: 100%; display: flex; justify-content: center; align-items: center;">
+            <canvas id="stockLevelsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="panel" style="padding-bottom: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div>
+                <h3 class="panel-title" style="margin-bottom: 2px; display: flex; align-items: center; gap: 7px;"><i class="fa-solid fa-triangle-exclamation" style="color: #ef4444;"></i> Low Stock Medicines</h3>
+                <p style="font-size: 11px; color: var(--text-secondary); margin: 0;">Items at or below low stock threshold ({{ app_settings.get('low_stock_threshold', '40') if app_settings else 40 }} units)</p>
+            </div>
+            <a href="{{ url_for('inventory') }}" style="font-size: 11.5px; font-weight: 600; color: var(--accent-red); text-decoration: none; padding: 5px 12px; border: 1.5px solid rgba(186,17,12,0.2); border-radius: 20px; transition: all 0.2s; white-space: nowrap;" onmouseover="this.style.background='rgba(186,17,12,0.06)'" onmouseout="this.style.background='transparent'">View All</a>
+        </div>
+        <div class="dashboard-alert-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Medicine</th>
+                        <th>Stock</th>
+                        <th>Reorder</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in low_stock_meds %}
+                    <tr>
+                        <td>{{ item.medicine }}</td>
+                        <td>{{ item.stock }}</td>
+                        <td>{{ item.reorder_point }}</td>
+                        <td>
+                            <span class="status-badge {% if item.stock == 0 or item.status == 'No Stock' %}status-no-stock{% else %}status-low-stock{% endif %}">
+                                {% if item.stock == 0 or item.status == 'No Stock' %}No Stock{% else %}Low Stock{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="panel" style="padding-bottom: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div>
+                <h3 class="panel-title" style="margin-bottom: 2px; display: flex; align-items: center; gap: 7px;"><i class="fa-solid fa-hourglass-half" style="color: #f59e0b;"></i> Near Expiry Medicines</h3>
+                <p style="font-size: 11px; color: var(--text-secondary); margin: 0;">Items expiring within {{ app_settings.get('near_expiry_warning', '90') if app_settings else 90 }} days</p>
+            </div>
+            <a href="{{ url_for('expiry_monitoring') }}" style="font-size: 11.5px; font-weight: 600; color: var(--accent-red); text-decoration: none; padding: 5px 12px; border: 1.5px solid rgba(186,17,12,0.2); border-radius: 20px; transition: all 0.2s; white-space: nowrap;" onmouseover="this.style.background='rgba(186,17,12,0.06)'" onmouseout="this.style.background='transparent'">View All</a>
+        </div>
+        <div class="dashboard-alert-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Medicine</th>
+                        <th>Expiry Date</th>
+                        <th>Days Left</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in near_expiry_meds %}
+                    <tr>
+                        <td>{{ item.medicine }}</td>
+                        <td>{{ item.expiry_date }}</td>
+                        <td class="expiry-countdown" data-expiry="{{ item.expiry_date }}">{{ item.days_left }}</td>
+                        <td><span class="status-badge status-near-expiry">Near Expiry</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activities -->
+<div class="panel" style="margin-top: 22px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div>
+            <h3 class="panel-title" style="display:flex;align-items:center;gap:8px;margin:0;">
+                <i class="fa-solid fa-timeline" style="color:#3b82f6;"></i> Recent Activities
+            </h3>
+        </div>
+        <a href="{{ url_for('history') }}#activity" style="font-size:12px;font-weight:600;color:var(--accent);text-decoration:none;">View All →</a>
+    </div>
+    {% if recent_activities %}
+    <div>
+        {% for act in recent_activities %}
+        {% set icon_map = {
+            'add':     ('fa-plus',             'rgba(5,150,105,0.12)',   '#059669'),
+            'edit':    ('fa-pen',              'rgba(59,130,246,0.12)',  '#3b82f6'),
+            'archive': ('fa-box-archive',      'rgba(100,116,139,0.12)','#64748b'),
+            'restore': ('fa-rotate-left',      'rgba(5,150,105,0.12)',   '#059669'),
+            'trash':   ('fa-trash',            'rgba(245,158,11,0.12)',  '#d97706'),
+            'delete':  ('fa-trash-can',        'rgba(220,38,38,0.12)',   '#dc2626'),
+            'sale':    ('fa-cart-shopping',    'rgba(139,92,246,0.12)',  '#7c3aed'),
+            'po_received': ('fa-truck-ramp-box','rgba(59,130,246,0.12)','#3b82f6')
+        } %}
+        {% set ico = icon_map.get(act.action, ('fa-circle-dot','rgba(100,116,139,0.12)','#64748b')) %}
+        <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);">
+            <div style="width:30px;height:30px;border-radius:50%;background:{{ ico[1] }};color:{{ ico[2] }};display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;">
+                <i class="fa-solid {{ ico[0] }}"></i>
+            </div>
+            <div style="flex:1;min-width:0;">
+                <span style="font-size:13px;font-weight:600;color:var(--text);">{{ act.target_name }}</span>
+                <span style="font-size:11px;font-weight:500;color:var(--text-muted);margin-left:6px;text-transform:capitalize;">{{ act.action }}</span>
+                <div style="font-size:11px;color:var(--text-secondary);margin-top:1px;">by {{ act.performed_by }}</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;">{{ act.performed_at }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:32px 20px;color:var(--text-muted);">
+        <i class="fa-solid fa-timeline" style="font-size:28px;opacity:0.3;display:block;margin-bottom:10px;"></i>
+        <p style="font-size:13px;margin:0;">No recent activity yet. Actions like adding, editing, or archiving products will appear here.</p>
+    </div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const isDarkMode = '{{ app_settings.dark_mode }}' === 'true';
+    const textColor = isDarkMode ? '#cbd5e1' : '#475569';
+    const gridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+
+    // Sales Report Line Chart
+    const salesCtx = document.getElementById('salesTrendChart').getContext('2d');
+    const salesGradient = salesCtx.createLinearGradient(0, 0, 0, 220);
+    salesGradient.addColorStop(0, 'rgba(59, 130, 246, 0.18)');
+    salesGradient.addColorStop(1, 'rgba(59, 130, 246, 0.0)');
+
+    const chartData = {
+        last_week: {
+            labels: {{ last_week_labels | tojson }},
+            values: {{ last_week_values | tojson }}
+        },
+        this_week: {
+            labels: {{ this_week_labels | tojson }},
+            values: {{ this_week_values | tojson }}
+        },
+        monthly: {
+            labels: {{ monthly_labels | tojson }},
+            values: {{ monthly_values | tojson }}
+        },
+        annual: {
+            labels: {{ annual_labels | tojson }},
+            values: {{ annual_values | tojson }}
+        }
+    };
+
+    const salesTrendChart = new Chart(salesCtx, {
+        type: 'line',
+        data: {
+            labels: chartData.this_week.labels,
+            datasets: [{
+                label: 'Qty Sold',
+                data: chartData.this_week.values,
+                borderColor: '#3b82f6',
+                segment: {
+                    borderColor: ctx => '#3b82f6'
+                },
+                backgroundColor: salesGradient,
+                borderWidth: 4,
+                tension: 0.4,
+                fill: true,
+                pointBackgroundColor: '#3b82f6',
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2.5,
+                pointRadius: 6,
+                pointHoverRadius: 9
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { 
+                        stepSize: 1,
+                        color: textColor
+                    },
+                    grid: { color: gridColor }
+                },
+                x: {
+                    ticks: { color: textColor },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
+    document.getElementById('salesPeriodSelect').addEventListener('change', function() {
+        const period = this.value;
+        const data = chartData[period];
+        salesTrendChart.data.labels = data.labels;
+        salesTrendChart.data.datasets[0].data = data.values;
+        salesTrendChart.update();
+    });
+
+    // Stock Levels Bar Chart
+    const stockCtx = document.getElementById('stockLevelsChart').getContext('2d');
+    const barGradient = stockCtx.createLinearGradient(0, 0, 0, 220);
+    barGradient.addColorStop(0, '#14b8a6');
+    barGradient.addColorStop(1, 'rgba(20,184,166,0.4)');
+
+    new Chart(stockCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ stock_labels | tojson }},
+            datasets: [{
+                data: {{ stock_values | tojson }},
+                backgroundColor: barGradient,
+                borderRadius: { topLeft: 8, topRight: 8, bottomLeft: 0, bottomRight: 0 },
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { 
+                        color: textColor
+                    },
+                    grid: { color: gridColor }
+                },
+                x: {
+                    ticks: { color: textColor },
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
+    function updateCountdowns() {
+        const now = new Date();
+        document.querySelectorAll('.expiry-countdown').forEach(el => {
+            const expiryStr = el.dataset.expiry;
+            if (!expiryStr) return;
+            const parts = expiryStr.split('/');
+            if (parts.length !== 3) return;
+            const month = parseInt(parts[0], 10) - 1;
+            const day = parseInt(parts[1], 10);
+            const year = parseInt(parts[2], 10);
+            
+            const expiryDate = new Date(year, month, day, 0, 0, 0);
+            const diffMs = expiryDate - now;
+            
+            const row = el.closest('tr');
+            const badge = row ? row.querySelector('.status-badge') : null;
+            
+            if (diffMs <= 0) {
+                el.innerText = 'Expired';
+                el.style.color = '#ef4444';
+                el.style.fontWeight = '600';
+                if (badge) {
+                    badge.className = 'status-badge status-expired';
+                    badge.innerText = 'Expired';
+                }
+            } else {
+                const totalSecs = Math.floor(diffMs / 1000);
+                const days = Math.floor(totalSecs / (3600 * 24));
+                el.innerText = `${days} days`;
+                el.style.color = '';
+                el.style.fontWeight = '';
+                if (badge) {
+                    const nearExpiryThreshold = {{ (app_settings.get('near_expiry_warning', '90') | int) if app_settings else 90 }};
+                    if (days <= nearExpiryThreshold) {
+                        badge.className = 'status-badge status-near-expiry';
+                        badge.innerText = 'Near Expiry';
+                    } else {
+                        badge.className = 'status-badge status-good';
+                        badge.innerText = 'Good';
+                    }
+                }
+            }
+        });
+    }
+    updateCountdowns();
+    setInterval(updateCountdowns, 1000);
+</script>
+{% endblock %}
