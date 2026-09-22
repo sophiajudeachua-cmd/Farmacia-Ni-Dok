@@ -1,0 +1,746 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<style>
+    #font-size-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 20px;
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        outline: none;
+        margin: 0;
+    }
+    #font-size-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--accent);
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        transition: transform 0.1s;
+    }
+    #font-size-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+    }
+    #font-size-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border: none;
+        border-radius: 50%;
+        background: var(--accent);
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+        transition: transform 0.1s;
+    }
+    #font-size-slider::-moz-range-thumb:hover {
+        transform: scale(1.15);
+    }
+</style>
+<form action="{{ url_for('settings') }}" method="POST" style="max-width: 800px; margin: 0 auto; padding-bottom: 40px;">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, msg in messages %}
+                <div style="background: {% if category == 'error' %}#fef2f2{% elif category == 'warning' %}#fffbeb{% else %}#e2fbe8{% endif %}; 
+                            color: {% if category == 'error' %}#dc2626{% elif category == 'warning' %}#b45309{% else %}#10b981{% endif %}; 
+                            padding: 12px 24px; border-radius: 12px; font-weight: 500; margin-bottom: 20px; font-size: 13.5px; 
+                            border: 1px solid {% if category == 'error' %}#fecaca{% elif category == 'warning' %}#fde68a{% else %}#c2f9d0{% endif %};">
+                    {{ msg }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- PHARMACY PROFILE -->
+    {% if session.get('role') != 'Staff' %}
+    <div class="settings-section-title">Pharmacy Profile</div>
+    <div class="settings-group-card">
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Pharmacy Name</div>
+                <div class="settings-subtitle">Shown on receipts and reports</div>
+            </div>
+            <input type="text" class="form-control" name="pharmacy_name" value="{{ settings.pharmacy_name }}" style="width: 320px; border-radius: 20px; padding: 8px 16px;" required>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Address</div>
+                <div class="settings-subtitle">Physical pharmacy location</div>
+            </div>
+            <input type="text" class="form-control" name="address" value="{{ settings.address }}" style="width: 320px; border-radius: 20px; padding: 8px 16px;" required>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Contact Number</div>
+                <div class="settings-subtitle">For official business inquiries</div>
+            </div>
+            <input type="tel" class="form-control" name="contact" value="{{ settings.contact }}" placeholder="0917-000-0000" maxlength="13" pattern="^09[0-9]{2}-[0-9]{3}-[0-9]{4}$" title="Philippine mobile format: 09XX-XXX-XXXX" oninput="formatPHPhoneNumber(this)" style="width: 320px; border-radius: 20px; padding: 8px 16px;" required>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Email</div>
+                <div class="settings-subtitle">Pharmacy billing and notifications email</div>
+            </div>
+            <input type="email" class="form-control" name="email" value="{{ settings.email }}" style="width: 320px; border-radius: 20px; padding: 8px 16px;" required>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- APPEARANCE -->
+    <div class="settings-section-title">Appearance</div>
+    <div class="settings-group-card">
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Dark Mode</div>
+                <div class="settings-subtitle">Switch between light and dark interface</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="dark_mode" {% if settings.dark_mode == 'true' %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-row" style="flex-direction: column; align-items: stretch; gap: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <div class="settings-info">
+                    <div class="settings-title">Font Size</div>
+                    <div class="settings-subtitle">Adjust text size across the app</div>
+                </div>
+                <input type="hidden" id="input-font-size" name="font_size" value="{{ settings.font_size }}">
+            </div>
+            
+            <div style="max-width: 440px; width: 100%; margin: 8px auto 0 auto; padding: 0 16px;">
+                <div style="position: relative; margin-bottom: 24px; padding: 0 10px;">
+                    <!-- Visual track line -->
+                    <div style="position: absolute; left: 10px; right: 10px; top: 8px; height: 4px; background: var(--border-strong); border-radius: 2px; z-index: 1;"></div>
+                    
+                    <!-- 3 Red circles at steps -->
+                    <div style="position: absolute; left: 10px; right: 10px; top: 10px; height: 0; z-index: 2; pointer-events: none;">
+                        <span id="step-dot-1" style="position: absolute; left: 0%; top: 0; transform: translate(-50%, -50%); width: 8px; height: 8px; background-color: var(--border-strong); border-radius: 50%; display: block; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></span>
+                        <span id="step-dot-2" style="position: absolute; left: 50%; top: 0; transform: translate(-50%, -50%); width: 8px; height: 8px; background-color: var(--border-strong); border-radius: 50%; display: block; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></span>
+                        <span id="step-dot-3" style="position: absolute; left: 100%; top: 0; transform: translate(-50%, -50%); width: 8px; height: 8px; background-color: var(--border-strong); border-radius: 50%; display: block; transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></span>
+                    </div>
+                    
+                    <!-- Slider input -->
+                    <input type="range" id="font-size-slider" min="1" max="3" step="1" oninput="updateFontSizeSlider(this.value)" style="position: relative; z-index: 3;">
+                </div>
+                
+                <div style="background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center;">
+                    <div style="color: var(--text-gray); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Preview Example</div>
+                    <p id="font-size-preview" style="color: var(--text-dark); margin: 0; transition: font-size 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                        Farmacia ni Dok generic & branded medicines.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACCESSIBILITY -->
+    <div class="settings-section-title">Accessibility</div>
+    <div class="settings-group-card">
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">High Contrast Mode</div>
+                <div class="settings-subtitle">Increase contrast for better readability</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="high_contrast" {% if settings.high_contrast == 'true' %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Reduce Motion</div>
+                <div class="settings-subtitle">Minimize animations throughout the app</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="reduce_motion" {% if settings.reduce_motion == 'true' %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Screen Reader Friendly</div>
+                <div class="settings-subtitle">Optimize layout for assistive technologies</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="screen_reader" {% if settings.screen_reader == 'true' %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Show Generic Names</div>
+                <div class="settings-subtitle">Display generic medicine names alongside brand names</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="show_generic" {% if settings.show_generic == 'true' %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- ALERTS & NOTIFICATIONS -->
+    <div class="settings-section-title">Alerts & Notifications</div>
+    <div class="settings-group-card">
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Low Stock Alerts</div>
+                <div class="settings-subtitle">Notify when medicine stock falls below threshold</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="low_stock_alerts" {% if settings.low_stock_alerts == 'true' %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Expiry Alerts</div>
+                <div class="settings-subtitle">Warn when batches are approaching expiry date</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="expiry_alerts" {% if settings.expiry_alerts == 'true' %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Purchase Order Alerts</div>
+                <div class="settings-subtitle">Alert when orders are pending receipt</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="po_alerts" {% if settings.po_alerts == 'true' %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Transaction Notifications</div>
+                <div class="settings-subtitle">Show a notification after each transaction is recorded</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="sales_notifications" {% if settings.sales_notifications == 'true' %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- INVENTORY PREFERENCES -->
+    {% if session.get('role') != 'Staff' %}
+    <div class="settings-section-title">Inventory Preferences</div>
+    <div class="settings-group-card">
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Low Stock Threshold</div>
+                <div class="settings-subtitle">Minimum units before Low Stock status triggers (Must be &le; Reorder Point: {{ current_reorder_point }})</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                <input type="number" class="form-control" id="settings-low-stock-threshold" name="low_stock_threshold" value="{{ settings.low_stock_threshold }}" min="1" max="{{ current_reorder_point }}" style="width: 120px; text-align: right; border-radius: 20px; padding: 6px 16px;" oninput="validateLowStockThreshold(this, {{ current_reorder_point }})" required>
+                <span id="low-stock-threshold-err" style="display: none; color: #dc2626; font-size: 11px; font-weight: 600;">Max: {{ current_reorder_point }} units</span>
+            </div>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Near Expiry Warning (days)</div>
+                <div class="settings-subtitle">Days before expiry to trigger Near Expiry status</div>
+            </div>
+            <input type="number" class="form-control" name="near_expiry_warning" value="{{ settings.near_expiry_warning }}" min="1" max="365" style="width: 120px; text-align: right; border-radius: 20px; padding: 6px 16px;" required>
+        </div>
+
+    </div>
+    {% endif %}
+
+    <!-- SECURITY -->
+    <div class="settings-section-title">Security</div>
+    <div class="settings-group-card">
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Auto Logout</div>
+                <div class="settings-subtitle">Automatically log out after inactivity</div>
+            </div>
+            <select class="form-control" name="auto_logout" style="width: 150px; border-radius: 20px; padding: 6px 12px;" required>
+                <option value="15" {% if settings.auto_logout == '15' %}selected{% endif %}>15 minutes</option>
+                <option value="30" {% if settings.auto_logout == '30' %}selected{% endif %}>30 minutes</option>
+                <option value="60" {% if settings.auto_logout == '60' %}selected{% endif %}>1 hour</option>
+            </select>
+        </div>
+        <div class="settings-row">
+            <div class="settings-info">
+                <div class="settings-title">Require Password on Resume</div>
+                <div class="settings-subtitle">Ask for password after auto-logout</div>
+            </div>
+            <label class="toggle-switch">
+                <input type="checkbox" name="require_password" {% if settings.require_password == 'true' %}checked{% endif %}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- SAVE & CANCEL BUTTONS -->
+    {% if has_permission('settings_edit') %}
+    <div style="display: flex; gap: 12px; margin-top: 16px; margin-bottom: 24px;">
+        <button type="submit" class="modal-btn-save" style="padding: 10px 28px;">Save Changes</button>
+        <button type="button" class="modal-btn-cancel" style="padding: 10px 28px;" onclick="cancelChanges()">Cancel</button>
+    </div>
+    {% endif %}
+
+    <!-- DATA BACKUP & OFFLINE SYNC -->
+    {% if session.get('role') != 'Staff' %}
+    <div class="settings-section-title">Automated Backup & 1-Click Data Recovery</div>
+    <div class="settings-group-card" style="padding: 0;">
+        <!-- Cron Automatic Backup & 1-Click Restore -->
+        <div class="settings-row" style="padding: 20px 24px; border-bottom: 1px solid var(--border); gap: 32px; align-items: center;">
+            <div class="settings-info" style="flex: 1; min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="settings-title" style="margin-bottom: 0;">Automated Cron Backup & Restore</div>
+                    <span class="status-pill status-pill-online" style="font-size: 10.5px; padding: 2px 8px;">
+                        <span class="pulse-dot"></span> Cron Active
+                    </span>
+                </div>
+                <div class="settings-subtitle" style="margin-top: 6px; line-height: 1.55; max-width: 660px;">
+                    The system automatically takes backup snapshots every 6 hours into local storage. Backups are kept for 30 days and older files are automatically deleted.
+                </div>
+                <div style="font-size: 11.5px; color: var(--text-gray); margin-top: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 18px;">
+                    <span style="display: inline-flex; align-items: center; gap: 6px;"><i class="fa-solid fa-clock-rotate-left" style="color: var(--primary);"></i> Latest auto-backup: <strong id="last-auto-backup-label">{{ last_auto_backup_time }}</strong></span>
+                    <span style="display: inline-flex; align-items: center; gap: 6px;"><i class="fa-solid fa-server" style="color: #10b981;"></i> Saved restore points: <strong id="auto-backup-count-label">{{ auto_backups_count }}</strong></span>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end; flex-shrink: 0; width: 185px;">
+                <button type="button" onclick="confirmRestoreSnapshot('latest', 'Latest Automated Snapshot')" class="btn-primary" style="background: #0284c7; border-color: #0284c7; width: 185px; height: 38px; padding: 0 16px; font-size: 12.5px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-sizing: border-box;">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Restore Latest Backup
+                </button>
+                <button type="button" onclick="triggerAutoBackup(this)" class="btn-action-outline" style="width: 185px; height: 38px; padding: 0 16px; font-size: 12.5px; border-radius: 20px; color: var(--primary); border-color: var(--primary); display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-sizing: border-box;">
+                    <i class="fa-solid fa-rotate"></i> Run Backup Now
+                </button>
+            </div>
+        </div>
+
+        <!-- Available Restore Points (Recent Snapshots) -->
+        <div style="padding: 14px 24px; border-bottom: 1px solid var(--border);">
+            <div onclick="toggleSnapshotsList()" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer; user-select: none; padding: 2px 0;">
+                <div style="font-size: 13px; font-weight: 600; color: var(--text-dark); display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-timeline" style="color: #0284c7;"></i>
+                    <span>Available Restore Points (Automated Snapshots)</span>
+                    <span style="font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(2, 132, 199, 0.10); color: #0284c7;">{{ recent_snapshots|length }}</span>
+                </div>
+                <button type="button" style="background: none; border: none; cursor: pointer; color: var(--text-gray); padding: 4px 6px; display: inline-flex; align-items: center; gap: 6px; font-size: 12px;">
+                    <span id="snapshots-toggle-text" style="font-size: 11.5px; font-weight: 500;">View Snapshots</span>
+                    <i id="snapshots-toggle-icon" class="fa-solid fa-chevron-down" style="font-size: 12px; transition: transform 0.25s ease; color: #0284c7;"></i>
+                </button>
+            </div>
+            
+            <div id="snapshots-container" style="display: none; margin-top: 14px;">
+                {% if recent_snapshots %}
+                <div style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 4px;">
+                    {% for s in recent_snapshots %}
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 9px 14px; border-radius: 8px; background: rgba(0,0,0,0.02); border: 1px solid var(--border); transition: background 0.15s;" onmouseover="this.style.background='rgba(2,132,199,0.04)'" onmouseout="this.style.background='rgba(0,0,0,0.02)'">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 28px; height: 28px; border-radius: 6px; background: rgba(2, 132, 199, 0.10); color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 11.5px; flex-shrink: 0;">
+                                <i class="fa-solid fa-database"></i>
+                            </div>
+                            <div>
+                                <div style="font-size: 12px; font-weight: 600; color: var(--text-dark);">{{ s.display_time }}</div>
+                                <div style="font-size: 10.5px; color: var(--text-gray); font-family: monospace;">{{ s.filename }} · {{ s.size }}</div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-action-outline" style="font-size: 11.5px; padding: 4px 14px; border-radius: 14px; color: #0284c7; border-color: #0284c7; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px;" onclick="confirmRestoreSnapshot('{{ s.filename }}', '{{ s.display_time }}')">
+                            <i class="fa-solid fa-rotate-left"></i> Restore
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="font-size: 12px; color: var(--text-gray); font-style: italic; padding: 10px 0;">
+                    No automated snapshots saved yet. Click "Run Backup Now" or wait for the cron scheduler to create the first restore point.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Offline / Power Outage Records Sync (Excel) Card -->
+        <div class="settings-row" style="padding: 20px 24px; border-bottom: none; gap: 32px; align-items: center;">
+            <div class="settings-info" style="flex: 1; min-width: 0;">
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                    <div class="settings-title" style="margin-bottom: 0;">Offline Mode & Data Recovery</div>
+                    <span style="font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 12px; background: rgba(16, 185, 129, 0.12); color: #059669;">
+                        <i class="fa-solid fa-bolt-slash" style="font-size: 9px;"></i> Power Recovery
+                    </span>
+                </div>
+                <div class="settings-subtitle" style="margin-top: 6px; line-height: 1.55; max-width: 660px;">
+                    Download the pre-formatted Excel template to record customer transactions during brownouts or system downtime, then upload the file to automatically deduct batch inventory and sync sales history.
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-end; flex-shrink: 0; width: 185px;">
+                <a href="{{ url_for('download_offline_template') }}" class="btn-action-outline" style="width: 185px; height: 38px; padding: 0 16px; font-size: 12.5px; border-radius: 20px; color: #10b981; border-color: #10b981; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-sizing: border-box;">
+                    <i class="fa-solid fa-file-excel"></i> Template
+                </a>
+                <button type="button" class="btn-primary" style="width: 185px; height: 38px; padding: 0 16px; font-size: 12.5px; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; white-space: nowrap; box-sizing: border-box;" onclick="openOfflineSyncModal()">
+                    <i class="fa-solid fa-file-import"></i> Upload Excel
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ACCOUNT -->
+    <div class="settings-section-title">Account</div>
+    <div style="display: flex; gap: 16px; align-items: center; padding: 16px 20px; border-radius: 12px; border: 1px solid #fee2e2; background: #fff; cursor: pointer; transition: background 0.2s;" onclick="window.location.href='{{ url_for('logout') }}'" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='#fff'">
+        <div style="width: 36px; height: 36px; border-radius: 50%; background: #fee2e2; display: flex; align-items: center; justify-content: center; color: #ef4444;">
+            <i class="fa-solid fa-arrow-right-from-bracket"></i>
+        </div>
+        <div>
+            <div style="color: #ef4444; font-weight: 600; font-size: 14px;">Log Out</div>
+            <div style="color: var(--text-gray); font-size: 12px;">Sign out of your account</div>
+        </div>
+    </div>
+</form>
+
+
+<!-- 1-Click Automated Restore Confirmation Modal -->
+<div id="confirm-snapshot-modal" class="modal-overlay" onclick="closeSnapshotModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 480px;">
+        <button class="modal-close" onclick="closeSnapshotModal()">&times;</button>
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(2, 132, 199, 0.12); color: #0284c7; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0;">1-Click Database Restore</h3>
+                    <p style="margin: 2px 0 0;">Roll back database to an automated snapshot point</p>
+                </div>
+            </div>
+        </div>
+        <form action="{{ url_for('restore_snapshot') }}" method="POST">
+            <input type="hidden" name="snapshot_name" id="modal-snapshot-input" value="latest">
+            <div class="modal-body">
+                <div style="background: rgba(2, 132, 199, 0.08); border: 1px solid rgba(2, 132, 199, 0.25); border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+                    <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-gray); font-weight: 600;">Selected Restore Point:</div>
+                    <div id="modal-snapshot-label" style="font-size: 14px; font-weight: 700; color: #0284c7; margin-top: 3px;">Latest Automated Snapshot</div>
+                </div>
+
+                <div style="background: #fff3cd; color: #856404; padding: 12px 14px; border-radius: 8px; font-size: 12px; border: 1px solid #ffeeba; line-height: 1.45;">
+                    <i class="fa-solid fa-triangle-exclamation"></i> <strong>Safe 1-Click Rollback:</strong> No file downloads or uploads required. A safety backup of your current database will be saved before restoring. All records created after this restore point will be rolled back.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-cancel" onclick="closeSnapshotModal()">Cancel</button>
+                <button type="submit" class="modal-btn-save" style="background: #0284c7; border-color: #0284c7; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-rotate-left"></i> Confirm & Restore
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Offline / Power Outage Excel Records Sync Modal -->
+<div id="offline-sync-modal" class="modal-overlay" onclick="closeOfflineSyncModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 540px;">
+        <button class="modal-close" onclick="closeOfflineSyncModal()">&times;</button>
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 36px; height: 36px; border-radius: 8px; background: rgba(16, 185, 129, 0.12); color: #10b981; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                    <i class="fa-solid fa-file-excel"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0;">Upload Offline Sales Records</h3>
+                    <p style="margin: 2px 0 0;">Synchronize customer sales recorded manually during brownouts / power outages.</p>
+                </div>
+            </div>
+        </div>
+        <form action="{{ url_for('upload_offline_records') }}" method="POST" enctype="multipart/form-data">
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>Select Excel or CSV Spreadsheet (.xlsx, .xls, .csv)</span>
+                        <a href="{{ url_for('download_offline_template') }}" style="font-size: 11px; color: #10b981; text-decoration: underline; font-weight: 600;">
+                            <i class="fa-solid fa-download"></i> Get Template
+                        </a>
+                    </label>
+                    <input type="file" class="form-control" name="excel_file" accept=".xlsx,.xls,.csv" required style="padding: 9px;">
+                </div>
+
+                <div style="font-size: 11px; color: var(--text-gray); line-height: 1.4;">
+                    <i class="fa-solid fa-lightbulb" style="color: #eab308;"></i> <strong>Tip:</strong> Columns supported: <code>Date</code>, <code>Medicine Name or Brand</code>, <code>Quantity Sold</code>, <code>Recorded By</code>, and <code>Notes</code>.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-cancel" onclick="closeOfflineSyncModal()">Cancel</button>
+                <button type="submit" class="modal-btn-save" style="background: #10b981; border-color: #10b981; display: inline-flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Start Synchronization
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function showAppNotification(message, type = 'success') {
+        const wrapper = document.querySelector('.content-wrapper');
+        if (!wrapper) return;
+        
+        const isError = type === 'error' || type === 'danger';
+        const notif = document.createElement('div');
+        notif.style.cssText = `
+            padding: 14px 20px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: ${isError ? 'rgba(220, 38, 38, 0.10)' : 'rgba(16, 185, 129, 0.12)'};
+            color: ${isError ? '#b91c1c' : '#065f46'};
+            border: 1px solid ${isError ? 'rgba(220, 38, 38, 0.25)' : 'rgba(16, 185, 129, 0.35)'};
+            box-shadow: 0 4px 14px ${isError ? 'rgba(220, 38, 38, 0.12)' : 'rgba(16, 185, 129, 0.15)'};
+            transition: all 0.3s ease;
+        `;
+        notif.innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;">
+                <i class="fa-solid ${isError ? 'fa-triangle-exclamation' : 'fa-circle-check'}" style="font-size:18px;color:${isError ? '#dc2626' : '#10b981'};"></i>
+                <span>${message}</span>
+            </div>
+            <button onclick="this.parentElement.remove()" style="background:none;border:none;color:inherit;font-size:18px;cursor:pointer;opacity:0.7;padding:0 4px;">&times;</button>
+        `;
+        
+        wrapper.insertBefore(notif, wrapper.firstChild);
+        
+        setTimeout(() => {
+            if (notif.parentNode) {
+                notif.style.opacity = '0';
+                setTimeout(() => notif.remove(), 400);
+            }
+        }, 7000);
+    }
+
+    function triggerAutoBackup(btn) {
+        const origHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Executing Cron...';
+        btn.disabled = true;
+
+        fetch('{{ url_for("run_auto_backup") }}', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    showAppNotification('Cron backup error: ' + (data.error || 'Unknown error'), 'error');
+                    btn.innerHTML = origHTML;
+                    btn.disabled = false;
+                    return;
+                }
+
+                btn.innerHTML = '<i class="fa-solid fa-circle-check" style="color:#10b981;"></i> Done!';
+                const label = document.getElementById('last-auto-backup-label');
+                if (label && data.time) {
+                    label.textContent = data.time;
+                }
+                setTimeout(() => {
+                    btn.innerHTML = origHTML;
+                    btn.disabled = false;
+                }, 3000);
+
+                showAppNotification('Automated cron database snapshot created: ' + data.filename, 'success');
+            })
+            .catch(err => {
+                showAppNotification('Auto backup error: ' + err.message, 'error');
+                btn.innerHTML = origHTML;
+                btn.disabled = false;
+            });
+    }
+
+    function openOfflineSyncModal() {
+        document.getElementById('offline-sync-modal').classList.add('active');
+    }
+    function closeOfflineSyncModal() {
+        document.getElementById('offline-sync-modal').classList.remove('active');
+    }
+    function closeOfflineSyncModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeOfflineSyncModal();
+        }
+    }
+
+
+    function toggleSnapshotsList() {
+        const container = document.getElementById('snapshots-container');
+        const icon = document.getElementById('snapshots-toggle-icon');
+        const text = document.getElementById('snapshots-toggle-text');
+        if (container.style.display === 'none' || container.style.display === '') {
+            container.style.display = 'block';
+            if (icon) icon.style.transform = 'rotate(180deg)';
+            if (text) text.textContent = 'Hide Snapshots';
+        } else {
+            container.style.display = 'none';
+            if (icon) icon.style.transform = 'rotate(0deg)';
+            if (text) text.textContent = 'View Snapshots';
+        }
+    }
+
+    function confirmRestoreSnapshot(filename, labelText) {
+        document.getElementById('modal-snapshot-input').value = filename;
+        document.getElementById('modal-snapshot-label').textContent = labelText || filename;
+        document.getElementById('confirm-snapshot-modal').classList.add('active');
+    }
+    function closeSnapshotModal() {
+        document.getElementById('confirm-snapshot-modal').classList.remove('active');
+    }
+    function closeSnapshotModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeSnapshotModal();
+        }
+    }
+</script>
+
+<script>
+    function saveUnsavedFormState() {
+        const form = document.querySelector('form');
+        const state = {};
+        form.querySelectorAll('input, select').forEach(input => {
+            if (input.name) {
+                if (input.type === 'checkbox') {
+                    state[input.name] = input.checked;
+                } else {
+                    state[input.name] = input.value;
+                }
+            }
+        });
+        localStorage.setItem('unsaved_settings', JSON.stringify(state));
+    }
+
+    function restoreUnsavedFormState() {
+        const savedStateStr = localStorage.getItem('unsaved_settings');
+        if (!savedStateStr) return;
+        try {
+            const state = JSON.parse(savedStateStr);
+            const form = document.querySelector('form');
+            Object.keys(state).forEach(key => {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input) {
+                    if (input.type === 'checkbox') {
+                        input.checked = state[key];
+                    } else {
+                        input.value = state[key];
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('Error restoring unsaved settings:', e);
+        }
+    }
+
+    function cancelChanges() {
+        localStorage.removeItem('unsaved_settings');
+        window.location.reload();
+    }
+
+    function updateFontSizeSlider(val) {
+        let sizeName = 'Medium';
+        let previewSize = '12px';
+        if (val === '1' || val === 1) {
+            sizeName = 'Small';
+            previewSize = '10px';
+        } else if (val === '3' || val === 3) {
+            sizeName = 'Large';
+            previewSize = '16px';
+        }
+        
+        document.getElementById('input-font-size').value = sizeName;
+        document.getElementById('font-size-preview').style.setProperty('font-size', previewSize, 'important');
+        
+        // Highlight active step dot
+        const currentVal = parseInt(val);
+        for (let i = 1; i <= 3; i++) {
+            const dot = document.getElementById('step-dot-' + i);
+            if (dot) {
+                if (i === currentVal) {
+                    dot.style.width = '14px';
+                    dot.style.height = '14px';
+                    dot.style.backgroundColor = 'var(--accent)';
+                    dot.style.boxShadow = '0 0 10px rgba(192, 57, 43, 0.45)';
+                } else {
+                    dot.style.width = '8px';
+                    dot.style.height = '8px';
+                    dot.style.backgroundColor = 'var(--border-strong)';
+                    dot.style.boxShadow = 'none';
+                }
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+        // Restore state if page was refreshed/loaded
+        restoreUnsavedFormState();
+
+        const size = document.getElementById('input-font-size').value || '{{ settings.font_size }}';
+        let sliderVal = 2;
+        if (size === 'Small') sliderVal = 1;
+        else if (size === 'Large') sliderVal = 3;
+        
+        document.getElementById('font-size-slider').value = sliderVal;
+        updateFontSizeSlider(sliderVal);
+
+        // Bind form change listeners
+        document.querySelectorAll('form input, form select').forEach(input => {
+            input.addEventListener('change', saveUnsavedFormState);
+            input.addEventListener('input', saveUnsavedFormState);
+        });
+
+        // Validate Low Stock Threshold <= Reorder Point on form submit
+        const settingsForm = document.querySelector('form');
+        if (settingsForm) {
+            settingsForm.addEventListener('submit', (e) => {
+                const lowInput = document.getElementById('settings-low-stock-threshold');
+                if (lowInput) {
+                    const val = parseInt(lowInput.value, 10);
+                    const maxRop = parseInt(lowInput.getAttribute('max') || '100', 10);
+                    if (!isNaN(val) && val > maxRop) {
+                        e.preventDefault();
+                        alert(`Cannot save settings: Low Stock Threshold (${val}) cannot be greater than the Reorder Point (${maxRop} units).`);
+                        lowInput.focus();
+                        return false;
+                    }
+                }
+                localStorage.removeItem('unsaved_settings');
+            });
+        }
+    });
+
+    function validateLowStockThreshold(input, maxRop) {
+        const val = parseInt(input.value, 10);
+        const errEl = document.getElementById('low-stock-threshold-err');
+        if (!isNaN(val) && val > maxRop) {
+            input.setCustomValidity(`Low Stock Threshold cannot be greater than the Reorder Point (${maxRop} units).`);
+            if (errEl) errEl.style.display = 'block';
+        } else {
+            input.setCustomValidity('');
+            if (errEl) errEl.style.display = 'none';
+        }
+    }
+
+    function formatPHPhoneNumber(input) {
+        let digits = input.value.replace(/\D/g, '');
+        if (digits.length >= 1 && digits[0] !== '0') {
+            digits = '0' + digits;
+        }
+        if (digits.length >= 2 && digits.substring(0, 2) !== '09') {
+            digits = '09' + digits.substring(2);
+        }
+        if (digits.length > 11) {
+            digits = digits.substring(0, 11);
+        }
+        let formatted = '';
+        if (digits.length <= 4) {
+            formatted = digits;
+        } else if (digits.length <= 7) {
+            formatted = digits.substring(0, 4) + '-' + digits.substring(4);
+        } else {
+            formatted = digits.substring(0, 4) + '-' + digits.substring(4, 7) + '-' + digits.substring(7);
+        }
+        input.value = formatted;
+    }
+</script>
+{% endblock %}

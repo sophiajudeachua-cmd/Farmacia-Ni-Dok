@@ -1,0 +1,472 @@
+{% extends 'base.html' %}
+{% block title %}Suppliers{% endblock %}
+
+{% block content %}
+<style>
+.supplier-name-link {
+    color: var(--text-dark, #0f172a);
+    font-weight: 600;
+    text-decoration: none;
+    border-bottom: 1px dashed #cbd5e1;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.supplier-name-link:hover {
+    color: #10b981;
+    border-bottom-color: #10b981;
+}
+
+/* Equal 4-column distribution & consistent alignment */
+.suppliers-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+.suppliers-table th,
+.suppliers-table td {
+    padding: 14px 18px;
+    text-align: left;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+.suppliers-table th {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    color: var(--text-secondary, #64748b);
+    background: var(--surface, #ffffff);
+    border-bottom: 1.5px solid var(--border, #e2e8f0);
+}
+.suppliers-table td {
+    border-bottom: 1px solid var(--bg-soft, #f1f5f9);
+}
+.suppliers-table .col-id {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-dark, #0f172a);
+}
+.suppliers-table .col-name {
+    font-weight: 600;
+    font-size: 12.5px;
+    color: var(--text-dark, #0f172a);
+    word-break: break-word;
+    padding-left: 15px;
+}
+.suppliers-table th.col-name-th {
+    padding-left: 15px;
+}
+.suppliers-table .col-contact {
+    font-size: 12px;
+    font-weight: 600;
+    color: #10b981;
+}
+.suppliers-table .col-action {
+    white-space: nowrap;
+}
+.suppliers-table .action-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+</style>
+
+<div class="panel">
+    <div class="panel-header" style="display: flex; flex-direction: column; gap: 16px; align-items: stretch;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Suppliers</h3>
+            <span class="list-count-badge" id="supplier-count-badge">
+                {{ items | length }} supplier(s)
+            </span>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%;">
+            <div class="search-input" style="margin-bottom: 0; max-width: 320px; width: 100%;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="supplier-search-input" placeholder="Search suppliers..." onkeyup="filterSuppliersTable()" oninput="filterSuppliersTable()">
+            </div>
+            
+            <div style="display: flex; gap: 10px; align-items: center;">
+                {% if has_permission('reports_download') %}
+                <div style="position: relative; display: inline-block;" id="supExportWrap">
+                    <button type="button" class="btn-action-outline" onclick="toggleSupExportMenu(event)" style="height: 36px; padding: 0 16px; font-size: 12.5px; border-radius: 20px; color: var(--accent, #c0392b); border: 1.5px solid var(--accent, #c0392b); background: transparent; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 600;">
+                        <i class="fa-solid fa-file-arrow-down"></i> Export Report <i class="fa-solid fa-chevron-down" style="font-size: 9px; margin-left: 2px;"></i>
+                    </button>
+                    <div id="supExportDropdown" style="display: none; position: absolute; right: 0; top: 42px; background: var(--card-bg, #ffffff); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 100; min-width: 175px; padding: 4px 0;">
+                        <form action="{{ url_for('download_report') }}" method="POST" style="margin: 0;">
+                            <input type="hidden" name="report_type" value="suppliers">
+                            <input type="hidden" name="frequency" value="all">
+                            <input type="hidden" name="format" value="excel">
+                            <button type="submit" style="width: 100%; text-align: left; padding: 8px 14px; background: none; border: none; font-size: 11.5px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='var(--bg-hover, rgba(0,0,0,0.04))'" onmouseout="this.style.background='none'">
+                                <i class="fa-solid fa-file-excel" style="color: #10b981;"></i> Download Excel (.xlsx)
+                            </button>
+                        </form>
+                        <form action="{{ url_for('download_report') }}" method="POST" style="margin: 0;">
+                            <input type="hidden" name="report_type" value="suppliers">
+                            <input type="hidden" name="frequency" value="all">
+                            <input type="hidden" name="format" value="pdf">
+                            <button type="submit" style="width: 100%; text-align: left; padding: 8px 14px; background: none; border: none; font-size: 11.5px; color: var(--text); cursor: pointer; display: flex; align-items: center; gap: 8px;" onmouseover="this.style.background='var(--bg-hover, rgba(0,0,0,0.04))'" onmouseout="this.style.background='none'">
+                                <i class="fa-solid fa-file-pdf" style="color: #ef4444;"></i> Download PDF (.pdf)
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+                {% if has_permission('suppliers_add') %}
+                <button class="btn-primary" style="width: auto; padding: 8px 24px; font-size: 13px; font-weight: 500; border-radius: 20px; text-align: center; display: inline-block; white-space: nowrap;" onclick="openSupModal()">+ Add Supplier</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <table class="suppliers-table">
+        <colgroup>
+            <col style="width: 18%;">
+            <col style="width: 32%;">
+            <col style="width: 25%;">
+            <col style="width: 25%;">
+        </colgroup>
+        <thead>
+            <tr>
+                <th style="width: 18%;">ID</th>
+                <th class="col-name-th" style="width: 32%;">Name</th>
+                <th style="width: 25%;">Contact</th>
+                <th style="width: 25%;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr class="supplier-row" data-id="{{ item.id }}" data-name="{{ item.name | escape }}" data-address="{{ item.address | escape }}" data-contact="{{ item.contact | escape }}">
+                <td class="col-id">{{ item.id }}</td>
+                <td class="col-name">
+                    <a href="javascript:void(0)" onclick="openSupplierDetailsModal('{{ item.id }}', '{{ item.name | escape }}', '{{ item.address | escape }}', '{{ item.contact | escape }}', {{ item.products | tojson | escape }})" class="supplier-name-link" title="View Supplier Details">{{ item.name }}</a>
+                </td>
+                <td class="col-contact">{{ item.contact }}</td>
+                <td class="col-action">
+                    <div class="action-group">
+                        <button type="button" class="btn-icon-circle btn-view" title="View Supplier Details" onclick="openSupplierDetailsModal('{{ item.id }}', '{{ item.name | escape }}', '{{ item.address | escape }}', '{{ item.contact | escape }}', {{ item.products | tojson | escape }})"><i class="fa-solid fa-eye"></i></button>
+                        {% if has_permission('suppliers_edit') %}
+                        <button type="button" class="btn-icon-circle btn-edit" title="Edit Supplier" onclick="openEditSupModal('{{ item.id }}', '{{ item.name | escape }}', '{{ item.address | escape }}', '{{ item.contact | escape }}')"><i class="fa-solid fa-pen"></i></button>
+                        {% endif %}
+                        {% if has_permission('suppliers_delete') %}
+                        <form action="{{ url_for('delete_supplier', sup_id=item.id) }}" method="POST" style="display:inline;margin:0;" onsubmit="return confirmAction(event, 'Delete supplier?')">
+                            <button type="submit" class="btn-icon-circle btn-delete" title="Delete Supplier"><i class="fa-solid fa-trash"></i></button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Supplier Modal -->
+<div id="add-supplier-modal" class="modal-overlay" onclick="closeSupModalOnOverlay(event, this)">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeSupModal()">&times;</button>
+        <div class="modal-header">
+            <h3>Add Supplier</h3>
+            <p>Enter the supplier details below.</p>
+        </div>
+        <form action="{{ url_for('suppliers') }}" method="POST">
+            <div class="modal-body">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Supplier Name</label>
+                    <input type="text" class="form-control" placeholder="e.g. ABC Pharma Supply" name="name" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Address</label>
+                    <input type="text" class="form-control" placeholder="e.g. Calumpit, Bulacan" name="address" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Contact</label>
+                    <input type="tel" class="form-control" placeholder="0917-000-0000" name="contact" maxlength="13" pattern="^09[0-9]{2}-[0-9]{3}-[0-9]{4}$" title="Philippine mobile format: 09XX-XXX-XXXX" oninput="formatPHPhoneNumber(this)" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-cancel" onclick="closeSupModal()">Cancel</button>
+                <button type="submit" class="modal-btn-save">Save Supplier</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Supplier Modal -->
+<div id="edit-supplier-modal" class="modal-overlay" onclick="closeEditSupModalOnOverlay(event, this)">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closeEditSupModal()">&times;</button>
+        <div class="modal-header">
+            <h3>Edit Supplier</h3>
+            <p>Update the supplier details below.</p>
+        </div>
+        <form action="{{ url_for('edit_supplier') }}" method="POST">
+            <div class="modal-body">
+                <input type="hidden" id="edit-sup-id" name="id">
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Supplier Name</label>
+                    <input type="text" class="form-control" id="edit-sup-name" name="name" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Address</label>
+                    <input type="text" class="form-control" id="edit-sup-address" name="address" required>
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Contact</label>
+                    <input type="tel" class="form-control" id="edit-sup-contact" name="contact" placeholder="0917-000-0000" maxlength="13" pattern="^09[0-9]{2}-[0-9]{3}-[0-9]{4}$" title="Philippine mobile format: 09XX-XXX-XXXX" oninput="formatPHPhoneNumber(this)" required>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-cancel" onclick="closeEditSupModal()">Cancel</button>
+                <button type="submit" class="modal-btn-save">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function toggleSupExportMenu(e) {
+        e.stopPropagation();
+        const dd = document.getElementById('supExportDropdown');
+        if (dd) dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+    }
+    document.addEventListener('click', function(e) {
+        const wrap = document.getElementById('supExportWrap');
+        const dd = document.getElementById('supExportDropdown');
+        if (dd && wrap && !wrap.contains(e.target)) {
+            dd.style.display = 'none';
+        }
+    });
+
+    function openSupModal() {
+        document.getElementById('add-supplier-modal').classList.add('active');
+    }
+    function closeSupModal() {
+        document.getElementById('add-supplier-modal').classList.remove('active');
+    }
+    function closeSupModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeSupModal();
+        }
+    }
+    function openEditSupModal(id, name, address, contact) {
+        document.getElementById('edit-sup-id').value = id;
+        document.getElementById('edit-sup-name').value = name;
+        document.getElementById('edit-sup-address').value = address;
+        document.getElementById('edit-sup-contact').value = contact;
+        document.getElementById('edit-supplier-modal').classList.add('active');
+    }
+    function closeEditSupModal() {
+        document.getElementById('edit-supplier-modal').classList.remove('active');
+    }
+    function closeEditSupModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeEditSupModal();
+        }
+    }
+
+    function formatPHPhoneNumber(input) {
+        let digits = input.value.replace(/\D/g, '');
+        if (digits.length >= 1 && digits[0] !== '0') {
+            digits = '0' + digits;
+        }
+        if (digits.length >= 2 && digits.substring(0, 2) !== '09') {
+            digits = '09' + digits.substring(2);
+        }
+        if (digits.length > 11) {
+            digits = digits.substring(0, 11);
+        }
+        let formatted = '';
+        if (digits.length <= 4) {
+            formatted = digits;
+        } else if (digits.length <= 7) {
+            formatted = digits.substring(0, 4) + '-' + digits.substring(4);
+        } else {
+            formatted = digits.substring(0, 4) + '-' + digits.substring(4, 7) + '-' + digits.substring(7);
+        }
+        input.value = formatted;
+    }
+
+    // ─── Live Table Search ────────────────────────────────
+    function filterSuppliersTable() {
+        const query = (document.getElementById('supplier-search-input').value || '').toLowerCase().trim();
+        const rows = document.querySelectorAll('.suppliers-table tbody tr.supplier-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const id = (row.getAttribute('data-id') || '').toLowerCase();
+            const name = (row.getAttribute('data-name') || '').toLowerCase();
+            const address = (row.getAttribute('data-address') || '').toLowerCase();
+            const contact = (row.getAttribute('data-contact') || '').toLowerCase();
+            
+            if (!query || id.includes(query) || name.includes(query) || address.includes(query) || contact.includes(query)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        let emptyRow = document.getElementById('no-suppliers-row');
+        if (visibleCount === 0) {
+            if (!emptyRow) {
+                emptyRow = document.createElement('tr');
+                emptyRow.id = 'no-suppliers-row';
+                emptyRow.innerHTML = '<td colspan="4" style="text-align: center; padding: 32px 14px; color: var(--text-gray, #94a3b8); font-size: 13px;"><i class="fa-solid fa-building-circle-xmark" style="font-size: 24px; color: #cbd5e1; display: block; margin-bottom: 8px;"></i>No suppliers found matching your search</td>';
+                document.querySelector('.suppliers-table tbody').appendChild(emptyRow);
+            } else {
+                emptyRow.style.display = '';
+            }
+        } else if (emptyRow) {
+            emptyRow.style.display = 'none';
+        }
+
+        const badge = document.getElementById('supplier-count-badge');
+        if (badge) {
+            if (query) {
+                badge.textContent = `${visibleCount} of {{ items | length }} supplier(s)`;
+            } else {
+                badge.textContent = `{{ items | length }} supplier(s)`;
+            }
+        }
+    }
+
+    // ─── Supplier Details Modal Handlers ──────────────────
+    let currentSupplierProducts = [];
+
+    function openSupplierDetailsModal(id, name, address, contact, products) {
+        document.getElementById('modal-sup-id-badge').textContent = id || '';
+        document.getElementById('modal-sup-name').textContent = name || '';
+        document.getElementById('modal-sup-address').textContent = address || 'No address provided';
+        document.getElementById('modal-sup-contact').textContent = contact || 'No contact provided';
+        document.getElementById('modal-sup-count').textContent = Array.isArray(products) ? products.length : 0;
+        document.getElementById('modal-sup-search').value = '';
+        currentSupplierProducts = Array.isArray(products) ? products : [];
+        renderModalProducts(currentSupplierProducts);
+        document.getElementById('supplier-details-modal').classList.add('active');
+    }
+
+    function closeSupplierDetailsModal() {
+        document.getElementById('supplier-details-modal').classList.remove('active');
+    }
+
+    function closeSupplierDetailsModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeSupplierDetailsModal();
+        }
+    }
+
+    // Alias for backwards compatibility
+    function openSupplierProductsModal(name, products) {
+        openSupplierDetailsModal('', name, '', '', products);
+    }
+    function closeSupplierProductsModal() {
+        closeSupplierDetailsModal();
+    }
+
+    function renderModalProducts(prods) {
+        const tbody = document.getElementById('modal-sup-tbody');
+        if (!tbody) return;
+        if (!prods || prods.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="padding: 18px; text-align: center; color: #94a3b8; font-size: 12px;">No matching products found</td></tr>';
+            return;
+        }
+        tbody.innerHTML = prods.map(p => `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 8px 12px; font-weight: 600; font-size: 11.5px; color: #64748b;">${p.id}</td>
+                <td style="padding: 8px 12px; font-weight: 600; font-size: 12px; color: #0f172a;">${p.brand}</td>
+                <td style="padding: 8px 12px; font-size: 11.5px; color: #475569;">${p.generic || '—'}</td>
+                <td style="padding: 8px 12px; font-size: 11px; color: #64748b;"><span style="padding: 2px 7px; border-radius: 9999px; background: #f1f5f9;">${p.category}</span></td>
+                <td style="padding: 8px 12px; text-align: right; font-weight: 700; font-size: 12px; color: ${p.stock > 0 ? '#059669' : '#dc2626'};">${p.stock}</td>
+            </tr>
+        `).join('');
+    }
+
+    function filterModalProducts(query) {
+        const q = (query || '').toLowerCase().trim();
+        if (!q) {
+            renderModalProducts(currentSupplierProducts);
+            return;
+        }
+        const filtered = currentSupplierProducts.filter(p => 
+            (p.id && p.id.toLowerCase().includes(q)) ||
+            (p.brand && p.brand.toLowerCase().includes(q)) ||
+            (p.generic && p.generic.toLowerCase().includes(q)) ||
+            (p.category && p.category.toLowerCase().includes(q))
+        );
+        renderModalProducts(filtered);
+    }
+</script>
+
+<!-- View Supplier Details Modal -->
+<div id="supplier-details-modal" class="modal-overlay" onclick="closeSupplierDetailsModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 680px; border-radius: 16px; padding: 22px 24px;">
+        <button class="modal-close" onclick="closeSupplierDetailsModal()">&times;</button>
+        <div class="modal-header" style="padding-bottom: 14px; border-bottom: 1px solid var(--border-light, #e2e8f0);">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="modal-sup-id-badge" style="font-size: 11px; font-weight: 700; color: #065f46; background: #d1fae5; padding: 3px 8px; border-radius: 9999px; letter-spacing: 0.5px;"></span>
+                    <h3 id="modal-sup-name" style="margin: 0; font-size: 17px; font-weight: 700; color: var(--text-dark, #0f172a);"></h3>
+                </div>
+            </div>
+            <p style="margin: 4px 0 0 0; font-size: 12px; color: var(--text-gray, #64748b);">Official Registered Supplier Profile & Product Catalog</p>
+        </div>
+        
+        <div class="modal-body" style="padding: 16px 0 0 0;">
+            <!-- Detailed Info Cards -->
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="grid-column: 1 / -1;">
+                    <span style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <i class="fa-solid fa-location-dot" style="color: #ef4444; font-size: 12px;"></i> Address
+                    </span>
+                    <div id="modal-sup-address" style="font-size: 13px; font-weight: 600; color: #1e293b; line-height: 1.45;"></div>
+                </div>
+                <div>
+                    <span style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <i class="fa-solid fa-phone" style="color: #10b981; font-size: 12px;"></i> Contact Number
+                    </span>
+                    <div id="modal-sup-contact" style="font-size: 13px; font-weight: 600; color: #10b981;"></div>
+                </div>
+                <div>
+                    <span style="font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <i class="fa-solid fa-boxes-stacked" style="color: #6366f1; font-size: 12px;"></i> Products Supplied
+                    </span>
+                    <div style="font-size: 13px; font-weight: 700; color: #1e293b;"><span id="modal-sup-count">0</span> registered product(s)</div>
+                </div>
+            </div>
+
+            <!-- Products Table -->
+            <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                <label style="font-size: 12px; font-weight: 700; color: var(--text-dark, #0f172a); margin: 0; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-pills" style="color: #059669; font-size: 12px;"></i>
+                    <span>Supplied Products</span>
+                </label>
+            </div>
+            <div style="margin-bottom: 12px;">
+                <input type="text" id="modal-sup-search" class="form-control" placeholder="Search products" oninput="filterModalProducts(this.value)" style="font-size: 12px; height: 35px; border-radius: 8px;">
+            </div>
+            <div style="max-height: 250px; overflow-y: auto; border: 1px solid var(--border-light, #e2e8f0); border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+                    <thead>
+                        <tr style="background: #f8fafc; border-bottom: 1px solid #e2e8f0; text-align: left;">
+                            <th style="padding: 8px 12px; font-size: 11px; font-weight: 600; color: #64748b;">ID</th>
+                            <th style="padding: 8px 12px; font-size: 11px; font-weight: 600; color: #64748b;">Brand Name</th>
+                            <th style="padding: 8px 12px; font-size: 11px; font-weight: 600; color: #64748b;">Generic Name</th>
+                            <th style="padding: 8px 12px; font-size: 11px; font-weight: 600; color: #64748b;">Category</th>
+                            <th style="padding: 8px 12px; font-size: 11px; font-weight: 600; color: #64748b; text-align: right;">In Stock</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modal-sup-tbody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="modal-footer" style="margin-top: 18px; display: flex; justify-content: space-between; align-items: center;">
+            <a href="{{ url_for('inventory') }}" style="font-size: 12px; font-weight: 600; color: #10b981; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                <span>View Full Inventory</span>
+                <i class="fa-solid fa-arrow-right" style="font-size: 10px;"></i>
+            </a>
+            <button type="button" class="modal-btn-cancel" onclick="closeSupplierDetailsModal()">Close</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

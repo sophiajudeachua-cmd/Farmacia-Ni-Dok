@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, post-check=0, pre-check=0">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <!-- Standalone Application Mode for Tablets & iPads -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Farmacia ni Dok">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo_icon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/logo_icon.png') }}">
+    <title>Login - Farmacia ni Dok</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .login-page-container {
+            position: relative;
+            width: 100%;
+            min-height: 100vh;
+            background: #fafafa;
+            overflow: hidden;
+        }
+        .about-us-trigger-wrapper {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            z-index: 100;
+        }
+        .about-us-btn {
+            background: #ffffff;
+            border: 1.5px solid #c0392b;
+            color: #c0392b;
+            padding: 7px 22px;
+            border-radius: 9999px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            box-shadow: 0 1px 4px rgba(20,16,16,0.07);
+            transition: all 0.2s;
+        }
+        .about-us-btn:hover {
+            background: #c0392b;
+            color: #ffffff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(192,57,43,0.22);
+        }
+        .login-card .btn-primary {
+            background: #c0392b !important;
+        }
+        .login-card .btn-primary:hover {
+            background: #a93226 !important;
+        }
+        .login-layout-wrapper {
+            display: flex;
+            width: 100%;
+            min-height: 100vh;
+            position: relative;
+        }
+        .login-card-container {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.55s cubic-bezier(0.77, 0, 0.175, 1);
+            min-height: 100vh;
+        }
+        .about-us-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 50%;
+            height: 100vh;
+            background: linear-gradient(145deg, #1a0a0a 0%, #6b1010 50%, #9b1c1c 100%);
+            color: #ffffff;
+            padding: 28px 48px 48px 48px;
+            box-shadow: -12px 0 36px rgba(28,24,20,0.18);
+            transform: translateX(100%);
+            transition: transform 0.55s cubic-bezier(0.77, 0, 0.175, 1);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            z-index: 50;
+            overflow-y: auto;
+        }
+        .about-us-close {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: transparent;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            font-size: 28px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .about-us-close:hover { color: #ffffff; }
+        .about-us-content { margin-top: 8px; }
+        .about-us-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.8px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 8px;
+        }
+        .about-us-section-title {
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 0.2px;
+            margin: 0 0 16px 0;
+        }
+        .about-us-paragraph {
+            font-size: 14px;
+            line-height: 1.65;
+            margin: 0 auto 28px auto;
+            max-width: 540px;
+            opacity: 0.9;
+            text-align: center;
+        }
+        .about-us-boxes { display: flex; flex-direction: column; gap: 18px; }
+        .about-box {
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 22px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+        .about-box h3 {
+            font-size: 13px;
+            font-weight: 700;
+            margin: 0 0 10px 0;
+            color: rgba(255,255,255,0.75);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .about-box p { font-size: 13.5px; line-height: 1.6; margin: 0; opacity: 0.88; }
+        .login-layout-wrapper.about-active .login-card-container { transform: translateX(-25%); }
+        .login-layout-wrapper.about-active .about-us-panel { transform: translateX(0); }
+        @media (max-width: 992px) {
+            .about-us-panel { width: 100%; }
+            .login-layout-wrapper.about-active .login-card-container { transform: translateX(-100%); }
+        }
+    </style>
+</head>
+<body style="display: block; padding: 0; background: #fafafa; font-family: 'Inter', sans-serif;">
+    <div class="login-page-container">
+        <!-- About Us Button -->
+        <div class="about-us-trigger-wrapper">
+            <button type="button" class="about-us-btn" id="about-us-toggle-btn" onclick="toggleAboutUs()">About Us</button>
+        </div>
+
+        <div class="login-layout-wrapper" id="login-layout-wrapper">
+            <!-- Login Panel -->
+            <div class="login-card-container">
+                <div class="login-card" style="box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" style="width: 220px; max-width: 100%; height: auto; margin: 0 auto 24px auto; display: block;">
+                    
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                      {% if messages %}
+                        {% for category, message in messages %}
+                          <div style="padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; margin-bottom: 16px; text-align: left; {% if category == 'success' %}background: rgba(16, 185, 129, 0.12); color: #065f46; border: 1px solid rgba(16, 185, 129, 0.25);{% else %}background: rgba(220, 38, 38, 0.10); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.25);{% endif %}">
+                            {{ message }}
+                          </div>
+                        {% endfor %}
+                      {% endif %}
+                    {% endwith %}
+
+                    <form method="POST" action="{{ url_for('login') }}">
+                        <div class="form-group">
+                            <label>Username</label>
+                            <input type="text" name="username" placeholder="Enter username" maxlength="15" pattern="[a-zA-Z0-9]{1,15}" title="Letters and numbers only, max 15 characters" oninput="sanitizeLoginInput(this)" required>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 6px;">
+                            <label>Password</label>
+                            <div style="position: relative;">
+                                <input type="password" id="login-password-field" name="password" placeholder="Enter password" maxlength="15" pattern="[a-zA-Z0-9]{1,15}" title="Letters and numbers only, max 15 characters" oninput="sanitizeLoginInput(this)" required style="width: 100%; padding-right: 40px;">
+                                <button type="button" onclick="toggleLoginPassword()" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #94a3b8;">
+                                    <i id="login-eye-icon" class="fa-solid fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: flex-end; margin-bottom: 20px;">
+                            <a href="javascript:void(0)" onclick="openForgotPasswordModal()" style="font-size: 12.5px; color: #c0392b; font-weight: 600; text-decoration: none; transition: opacity 0.2s;">Forgot password?</a>
+                        </div>
+                        <button type="submit" class="btn-primary">Login</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Forgot Password Modal (OTP Verification) -->
+            <div id="forgot-password-modal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(15, 22, 35, 0.55); backdrop-filter: blur(4px); z-index: 1000; align-items: center; justify-content: center;" onclick="closeForgotModalOnOverlay(event, this)">
+                <div style="background: #ffffff; border-radius: 16px; width: 100%; max-width: 440px; padding: 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid #e9e3e3; position: relative;">
+                    <button type="button" onclick="closeForgotPasswordModal()" style="position: absolute; top: 18px; right: 20px; background: none; border: none; font-size: 24px; color: #64626a; cursor: pointer;">&times;</button>
+                    
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div style="width: 48px; height: 48px; background: rgba(192, 57, 43, 0.1); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 12px; color: #c0392b; font-size: 20px;">
+                            <i id="reset-modal-icon" class="fa-solid fa-envelope-open-text"></i>
+                        </div>
+                        <h3 id="reset-modal-title" style="font-size: 18px; font-weight: 700; color: #18141a; margin: 0;">Reset Password</h3>
+                    </div>
+
+                    <!-- Error Alert inside modal -->
+                    <div id="verify-error-msg" style="display: none; padding: 10px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 500; margin-bottom: 16px; text-align: left; background: rgba(220, 38, 38, 0.10); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.25);"></div>
+
+                    <!-- Step 1: Request OTP -->
+                    <div id="reset-step-1">
+                        <div style="margin-bottom: 20px; text-align: left;">
+                            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #64626a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px;">Registered Email Address</label>
+                            <input type="email" id="verify-email-input" class="form-control" placeholder="e.g. owner@farmacianidok.com" required style="width: 100%; padding: 10px 12px; border: 1.5px solid #e9e3e3; border-radius: 8px; font-size: 13.5px;">
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 24px;">
+                            <button type="button" onclick="closeForgotPasswordModal()" style="flex: 1; padding: 10px; background: #f4f0f0; border: 1px solid #d6cccc; border-radius: 9999px; font-size: 13px; font-weight: 600; color: #64626a; cursor: pointer;">Cancel</button>
+                            <button type="button" id="send-otp-btn" onclick="submitSendOTP()" style="flex: 1.2; padding: 10px; background: #c0392b; border: none; border-radius: 9999px; font-size: 13px; font-weight: 600; color: #ffffff; cursor: pointer;">Send OTP</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Enter & Verify OTP -->
+                    <div id="reset-step-2" style="display: none;">
+                        <div id="otp-sent-info" style="margin-bottom: 14px; padding: 10px 14px; background: rgba(59, 130, 246, 0.10); color: #1d4ed8; border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 8px; font-size: 12.5px; font-weight: 500; text-align: left;">
+                            <i class="fa-solid fa-paper-plane"></i> OTP verification code sent to <strong id="otp-target-email">email</strong>.<br>
+                            <span style="font-size: 11px; opacity: 0.85;">(Demo Code: <strong id="otp-demo-code">------</strong>)</span>
+                        </div>
+
+                        <div style="margin-bottom: 20px; text-align: left;">
+                            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #64626a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px;">Enter 6-Digit OTP Code</label>
+                            <input type="text" id="verify-otp-input" class="form-control" placeholder="123456" maxlength="6" required style="width: 100%; padding: 10px 12px; border: 1.5px solid #e9e3e3; border-radius: 8px; font-size: 16px; font-weight: 700; letter-spacing: 4px; text-align: center;">
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 24px;">
+                            <button type="button" onclick="closeForgotPasswordModal()" style="flex: 1; padding: 10px; background: #f4f0f0; border: 1px solid #d6cccc; border-radius: 9999px; font-size: 13px; font-weight: 600; color: #64626a; cursor: pointer;">Cancel</button>
+                            <button type="button" id="verify-otp-btn" onclick="submitVerifyOTP()" style="flex: 1.2; padding: 10px; background: #c0392b; border: none; border-radius: 9999px; font-size: 13px; font-weight: 600; color: #ffffff; cursor: pointer;">Verify OTP</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Set New Password Form (Shown after OTP verified) -->
+                    <form id="reset-step-3" action="{{ url_for('forgot_password') }}" method="POST" style="display: none;">
+                        <input type="hidden" id="verified-user-id" name="user_id">
+                        
+                        <div style="margin-bottom: 14px; padding: 10px 14px; background: rgba(16, 185, 129, 0.12); color: #065f46; border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; font-size: 12.5px; font-weight: 600; text-align: left;">
+                            <i class="fa-solid fa-circle-check"></i> OTP Verified! Create your new password below.
+                        </div>
+
+                        <div style="margin-bottom: 14px; text-align: left; position: relative;">
+                            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #64626a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px;">New Password <span style="font-size: 10px; color: #94a3b8; font-weight: normal;">(10–15 chars)</span></label>
+                            <input type="password" id="reset-new-password" name="new_password" class="form-control" placeholder="Enter new password" required minlength="10" maxlength="15" pattern="[a-zA-Z0-9]{10,15}" title="Letters and numbers only, 10 to 15 characters" oninput="this.value = this.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15)" style="width: 100%; padding: 10px 40px 10px 12px; border: 1.5px solid #e9e3e3; border-radius: 8px; font-size: 13.5px;">
+                            <button type="button" onclick="toggleResetPasswordVisibility()" style="position: absolute; right: 12px; top: 32px; background: none; border: none; cursor: pointer; color: #94a3b8;">
+                                <i id="reset-eye-icon" class="fa-solid fa-eye"></i>
+                            </button>
+                        </div>
+
+                        <div style="margin-bottom: 20px; text-align: left;">
+                            <label style="display: block; font-size: 11.5px; font-weight: 600; color: #64626a; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px;">Confirm New Password</label>
+                            <input type="password" id="reset-confirm-password" name="confirm_password" class="form-control" placeholder="Re-enter new password" required minlength="10" maxlength="15" pattern="[a-zA-Z0-9]{10,15}" title="Letters and numbers only, 10 to 15 characters" oninput="this.value = this.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15)" style="width: 100%; padding: 10px 12px; border: 1.5px solid #e9e3e3; border-radius: 8px; font-size: 13.5px;">
+                        </div>
+
+                        <div style="display: flex; gap: 10px; margin-top: 24px;">
+                            <button type="button" onclick="closeForgotPasswordModal()" style="flex: 1; padding: 10px; background: #f4f0f0; border: 1px solid #d6cccc; border-radius: 9999px; font-size: 13px; font-weight: 600; color: #64626a; cursor: pointer;">Cancel</button>
+                            <button type="submit" style="flex: 1.2; padding: 10px; background: #c0392b; border: none; border-radius: 9999px; font-size: 13px; font-weight: 600; color: #ffffff; cursor: pointer;">Save New Password</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- About Us Slide panel -->
+            <div class="about-us-panel" id="about-us-panel">
+                <button type="button" class="about-us-close" onclick="toggleAboutUs()">&times;</button>
+                
+                <div class="about-us-content">
+                    <div style="text-align: center; margin-bottom: 24px; width: 100%;">
+                        <img src="{{ url_for('static', filename='images/logo_about_us.png') }}" style="width: 100%; max-width: 320px; height: auto; margin: 0 auto; display: block;" alt="Farmacia ni Dok">
+                    </div>
+                    <div style="text-align: center; margin-bottom: 24px; width: 100%;">
+                        <h2 style="font-size: 26px; font-weight: 800; color: #ffffff; margin: 0 0 12px 0;">Who We Are</h2>
+                        <div style="width: 48px; height: 2px; background: rgba(255, 255, 255, 0.6); margin: 0 auto;"></div>
+                    </div>
+                    <p class="about-us-paragraph">
+                        Farmacia ni Dok carries generics, branded and natural medicines, as well as personal care products in a convenient and friendly store set-up, complemented by trustworthy customer service. Farmacia ni Dok is committed to providing Filipinos quality and value-for-money products to ensure good health, happy homes and secure futures.
+                    </p>
+                    
+                    <div class="about-us-boxes">
+                        <div class="about-box">
+                            <h3>Vision</h3>
+                            <p>To be the Philippines’ LEADING DRUG STORE who serves the highest quality of branded, generic, and FMCG that sustains the health of every FILIPINO FAMILY.</p>
+                        </div>
+                        <div class="about-box">
+                            <h3>Mission</h3>
+                            <p>FNDI fulfills the dream of every Filipino aspiring to become not only entrepreneurs but valuable contributors to their community by providing its franchisees frantrepreneurial support, distribution of quality pharmaceutical products, and an up to date adherence to regulatory standards.<br><br>Believing that every Filipino deserves quality of life, Farmacia Ni Dok pledges the accessibility of its wide array of products in every FND store that are quality yet affordable.<br><br>Committing to its stakeholders profit, market leadership and growth, while instilling the value of integrity in every business transaction. FND takes the responsibility of enriching the lives of the employees with an opportunity to attain their personal growth.</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 36px; text-align: center; font-size: 11px; opacity: 0.65; border-top: 1px solid rgba(255, 255, 255, 0.15); padding-top: 16px; width: 100%;">
+                        © 2026 Farmacia ni Dok.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleAboutUs() {
+            const wrapper = document.getElementById('login-layout-wrapper');
+            const toggleBtn = document.getElementById('about-us-toggle-btn');
+            
+            if (wrapper.classList.contains('about-active')) {
+                wrapper.classList.remove('about-active');
+                toggleBtn.style.display = 'block';
+            } else {
+                wrapper.classList.add('about-active');
+                toggleBtn.style.display = 'none'; // hide the trigger button when panel is open
+            }
+        }
+
+        let activeResetEmail = '';
+
+        function openForgotPasswordModal() {
+            document.getElementById('reset-step-1').style.display = 'block';
+            document.getElementById('reset-step-2').style.display = 'none';
+            document.getElementById('reset-step-3').style.display = 'none';
+            document.getElementById('verify-error-msg').style.display = 'none';
+            document.getElementById('verify-email-input').value = '';
+            document.getElementById('verify-otp-input').value = '';
+            document.getElementById('reset-modal-icon').className = 'fa-solid fa-envelope-open-text';
+            document.getElementById('reset-modal-title').textContent = 'Reset Password';
+
+            const modal = document.getElementById('forgot-password-modal');
+            if (modal) modal.style.display = 'flex';
+        }
+
+        function submitSendOTP() {
+            const emailInput = document.getElementById('verify-email-input').value.trim();
+            const errDiv = document.getElementById('verify-error-msg');
+            const submitBtn = document.getElementById('send-otp-btn');
+
+            if (!emailInput) {
+                errDiv.textContent = 'Please enter your registered email address.';
+                errDiv.style.display = 'block';
+                return;
+            }
+
+            errDiv.style.display = 'none';
+            submitBtn.textContent = 'Sending OTP...';
+            submitBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('email', emailInput);
+
+            fetch("{{ url_for('send_otp') }}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                submitBtn.textContent = 'Send OTP';
+                submitBtn.disabled = false;
+
+                if (data.success) {
+                    activeResetEmail = data.email;
+                    document.getElementById('otp-target-email').textContent = data.email;
+                    document.getElementById('otp-demo-code').textContent = data.otp_demo;
+
+                    document.getElementById('reset-step-1').style.display = 'none';
+                    document.getElementById('reset-step-2').style.display = 'block';
+                    document.getElementById('reset-step-3').style.display = 'none';
+
+                    document.getElementById('reset-modal-icon').className = 'fa-solid fa-shield-halved';
+                    document.getElementById('reset-modal-title').textContent = 'Enter Verification OTP';
+                } else {
+                    errDiv.textContent = data.message || 'Email verification failed.';
+                    errDiv.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                submitBtn.textContent = 'Send OTP';
+                submitBtn.disabled = false;
+                errDiv.textContent = 'Server error sending OTP. Please try again.';
+                errDiv.style.display = 'block';
+            });
+        }
+
+        function submitVerifyOTP() {
+            const otpInput = document.getElementById('verify-otp-input').value.trim();
+            const errDiv = document.getElementById('verify-error-msg');
+            const submitBtn = document.getElementById('verify-otp-btn');
+
+            if (!otpInput || otpInput.length < 6) {
+                errDiv.textContent = 'Please enter the full 6-digit OTP verification code.';
+                errDiv.style.display = 'block';
+                return;
+            }
+
+            errDiv.style.display = 'none';
+            submitBtn.textContent = 'Verifying OTP...';
+            submitBtn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('email', activeResetEmail);
+            formData.append('otp', otpInput);
+
+            fetch("{{ url_for('verify_otp') }}", {
+                method: 'POST',
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                submitBtn.textContent = 'Verify OTP';
+                submitBtn.disabled = false;
+
+                if (data.success) {
+                    document.getElementById('verified-user-id').value = data.user_id;
+
+                    document.getElementById('reset-step-1').style.display = 'none';
+                    document.getElementById('reset-step-2').style.display = 'none';
+                    document.getElementById('reset-step-3').style.display = 'block';
+
+                    document.getElementById('reset-modal-icon').className = 'fa-solid fa-key';
+                    document.getElementById('reset-modal-title').textContent = 'Set New Password';
+                } else {
+                    errDiv.textContent = data.message || 'Invalid OTP code. Please try again.';
+                    errDiv.style.display = 'block';
+                }
+            })
+            .catch(err => {
+                submitBtn.textContent = 'Verify OTP';
+                submitBtn.disabled = false;
+                errDiv.textContent = 'Server error verifying OTP. Please try again.';
+                errDiv.style.display = 'block';
+            });
+        }
+
+        function closeForgotPasswordModal() {
+            const modal = document.getElementById('forgot-password-modal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function closeForgotModalOnOverlay(e, overlay) {
+            if (e.target === overlay) {
+                closeForgotPasswordModal();
+            }
+        }
+
+        function toggleLoginPassword() {
+            const field = document.getElementById('login-password-field');
+            const icon = document.getElementById('login-eye-icon');
+            if (field.type === 'password') {
+                field.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+            } else {
+                field.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+            }
+        }
+
+        function toggleResetPasswordVisibility() {
+            const field = document.getElementById('reset-new-password');
+            const icon = document.getElementById('reset-eye-icon');
+            if (field.type === 'password') {
+                field.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+            } else {
+                field.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+            }
+        }
+
+        function sanitizeLoginInput(input) {
+            input.value = input.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 15);
+        }
+    </script>
+</body>
+</html>
