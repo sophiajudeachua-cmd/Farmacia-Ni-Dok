@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% block title %}Stock Movement{% endblock %}
+
+{% block content %}
+<style>
+    #stock-cal-filter .cal-pill-btn {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 4px !important;
+        border-radius: 0 !important;
+    }
+    #stock-cal-filter .cal-pill-btn:hover {
+        background: transparent !important;
+        color: var(--accent, #c0392b) !important;
+    }
+    #stock-cal-filter .cal-pill-btn.has-value {
+        background: transparent !important;
+        color: var(--accent, #c0392b) !important;
+    }
+    .badge-stock-in { background: #dcfce7; color: #15803d; }
+    .badge-stock-out { background: #ffedd5; color: #c2410c; }
+    
+    {% if app_settings.dark_mode == 'true' %}
+    .badge-stock-in { background: rgba(16, 185, 129, 0.2) !important; color: #34d399 !important; }
+    .badge-stock-out { background: rgba(249, 115, 22, 0.2) !important; color: #ff9730 !important; }
+    {% endif %}
+</style>
+
+<div class="panel">
+    <div class="panel-header" style="display: flex; flex-direction: column; gap: 16px; align-items: stretch;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Stock Movements</h3>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%;">
+            <div class="search-input" style="margin-bottom: 0; max-width: 320px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="search-input" placeholder="Search products" onkeyup="filterTable()">
+            </div>
+            
+            <div class="filter-container">
+                <i class="fa-solid fa-filter"></i>
+                <select id="filter-type" class="filter-select" onchange="filterTable()">
+                    <option value="">All Types</option>
+                    <option value="Stock-In">Stock-In</option>
+                    <option value="Stock-Out">Stock-Out</option>
+                </select>
+                <span style="color: var(--border-light); font-size: 14px; user-select: none; margin: 0 4px;">|</span>
+                <div class="cal-filter-wrapper" id="stock-cal-filter"></div>
+            </div>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Type</th>
+                <th>Medicine</th>
+                <th>Batch</th>
+                <th>Quantity</th>
+                <th>Date</th>
+                <th>Reference</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr data-type="{{ item.type }}" data-medicine="{{ item.medicine | lower }}" data-batch="{{ item.batch | lower }}" data-reference="{{ item.reference | lower }}" data-category="{{ item.category | lower }}" data-date="{{ item.date }}">
+                <td>{{ item.id }}</td>
+                <td>
+                    <span class="status-badge {% if item.type == 'Stock-In' %}badge-stock-in{% else %}badge-stock-out{% endif %}">
+                        {{ item.type }}
+                    </span>
+                </td>
+                <td>{{ item.medicine }}</td>
+                <td>{{ item.batch }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.date }}</td>
+                <td>{{ item.reference }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function parseDateParts(dateStr) {
+        if (!dateStr) return { year: '', month: '' };
+        let year = '', month = '';
+        if (dateStr.includes('-')) {
+            const parts = dateStr.split(' ')[0].split('-');
+            if (parts.length >= 2) {
+                year = parts[0];
+                month = parts[1].padStart(2, '0');
+            }
+        } else if (dateStr.includes('/')) {
+            const parts = dateStr.split(' ')[0].split('/');
+            if (parts.length === 3) {
+                month = parts[0].padStart(2, '0');
+                year = parts[2];
+            }
+        }
+        return { year, month };
+    }
+
+    let stockCalFilter = null;
+
+    function filterTable() {
+        const search = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+        const type = document.getElementById('filter-type')?.value || '';
+        const calVals = stockCalFilter ? stockCalFilter.getFilterValues() : { month: null, year: null };
+        const selMonth = calVals.month;
+        const selYear = calVals.year;
+        const table = document.querySelector('table');
+        
+        document.querySelectorAll('tbody tr').forEach(row => {
+            const med = row.dataset.medicine || '';
+            const batch = row.dataset.batch || '';
+            const ref = row.dataset.reference || '';
+            const rType = row.dataset.type || '';
+            const rDate = row.dataset.date || '';
+            
+            const matchesSearch = !search || med.includes(search) || batch.includes(search) || ref.includes(search);
+            const matchesType = !type || rType === type;
+            
+            const { year, month } = parseDateParts(rDate);
+            const matchesMonth = !selMonth || month === selMonth;
+            const matchesYear = !selYear || year === selYear;
+            
+            const isMatch = matchesSearch && matchesType && matchesMonth && matchesYear;
+            row.dataset.filteredHidden = isMatch ? 'false' : 'true';
+            row.style.display = isMatch ? '' : 'none';
+        });
+
+        if (table && table.rePaginate) {
+            table.rePaginate();
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', filterTable);
+        }
+
+        const calContainer = document.getElementById('stock-cal-filter');
+        if (calContainer) {
+            stockCalFilter = new CalendarFilter(calContainer, () => {
+                filterTable();
+            });
+        }
+    });
+</script>
+{% endblock %}

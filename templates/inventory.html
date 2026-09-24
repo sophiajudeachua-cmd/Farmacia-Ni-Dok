@@ -1,0 +1,725 @@
+{% extends 'base.html' %}
+{% block title %}Inventory{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header" style="display: flex; flex-direction: column; gap: 16px; align-items: stretch;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Inventory List</h3>
+            <span class="list-count-badge">
+                {{ items | length }} product(s)
+            </span>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%;">
+            <div class="search-input" style="margin-bottom: 0; max-width: 320px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="search-input" placeholder="Search products" onkeyup="filterTable()" oninput="filterTable()">
+            </div>
+            
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <div class="filter-container">
+                    <i class="fa-solid fa-filter"></i>
+                    <select id="filter-status" class="filter-select" onchange="filterTable()">
+                        <option value="">All Stocks</option>
+                        <option value="Good">Good Stock</option>
+                        <option value="Low Stock">Low Stock</option>
+                        <option value="No Stock">No Stock</option>
+                    </select>
+                    <span style="color: var(--border-light); font-size: 14px; user-select: none; margin: 0 4px;">|</span>
+                    <select id="filter-category" class="filter-select" onchange="filterTable()">
+                        <option value="">All Categories</option>
+                        {% for cat in items | map(attribute='category') | unique | sort %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if has_permission('inventory_add') %}
+                <button class="btn-primary" style="width: auto; padding: 8px 24px; font-size: 13px; font-weight: 500; border-radius: 20px; text-align: center; display: inline-block; white-space: nowrap;" onclick="openModal()">+ Add Product</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr id="thead-row">
+                <th>SKU</th>
+                <th>Brand</th>
+                {% if app_settings.show_generic != 'false' %}
+                <th>Generic Name</th>
+                {% endif %}
+                <th>Category</th>
+                <th>Stock</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="tbody-rows">
+            {% for item in items %}
+            <tr data-brand="{{ item.brand | lower }}" data-generic="{{ item.generic | lower }}" data-product="{{ item.product_name | lower }}" data-category="{{ item.category | lower }}" data-status="{% if item.stock == 0 or item.status == 'No Stock' %}No Stock{% else %}{{ item.status }}{% endif %}">
+                <td>{{ item.id }}</td>
+                <td>{{ item.brand }}</td>
+                {% if app_settings.show_generic != 'false' %}
+                <td>{{ item.generic or 'N/A' }}</td>
+                {% endif %}
+                <td>{{ item.category }}</td>
+                <td style="font-weight: 600;">{{ item.stock }}</td>
+                <td>
+                    <span class="status-badge 
+                        {% if item.stock == 0 or item.status == 'No Stock' %}status-no-stock
+                        {% elif item.status == 'Low Stock' %}status-low-stock
+                        {% elif item.stock >= 2500 %}status-overstocked
+                        {% elif item.status == 'Good' %}status-good
+                        {% else %}status-near-expiry{% endif %}">
+                        {% if item.stock == 0 or item.status == 'No Stock' %}No Stock
+                        {% elif item.stock >= 2500 %}Overstocked ({{ item.stock }}/2,500)
+                        {% else %}{{ item.status }}{% endif %}
+                    </span>
+                </td>
+                <td style="white-space:nowrap;">
+                    {% if has_permission('inventory_edit') %}
+                    <!-- Edit -->
+                    <button class="btn-icon-circle btn-edit" title="Edit"
+                        onclick="openEditMedModal('{{ item.id }}', '{{ item.generic | escape }}', '{{ item.brand | escape }}', '{{ item.category | escape }}', '{{ item.reorder_point }}', '{{ item.product_name | escape }}', '{{ item.description | escape }}', '{{ item.unit_of_measure | escape }}', '{{ item.purchase_price }}', '{{ item.supplier | escape }}')">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    {% endif %}
+                    {% if has_permission('inventory_archive') %}
+                    <!-- Archive -->
+                    <form method="POST" action="{{ url_for('archive_medicine', med_id=item.id) }}" style="display:inline;margin:0;"
+                        onsubmit="return confirmAction(event, 'Archive {{ item.brand | escape }}?')">
+                        <button type="submit" class="btn-icon-circle btn-archive" title="Archive">
+                            <i class="fa-solid fa-box-archive"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                    {% if has_permission('inventory_delete') %}
+                    <!-- Delete -->
+                    <form method="POST" action="{{ url_for('trash_medicine', med_id=item.id) }}" style="display:inline;margin:0;"
+                        onsubmit="return confirmAction(event, 'Delete {{ item.brand | escape }}?')">
+                        <button type="submit" class="btn-icon-circle btn-delete" title="Delete">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Medicine Modal -->
+<div id="add-medicine-modal" class="modal-overlay" onclick="closeModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 600px;">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <div class="modal-header">
+            <h3>Add New Product</h3>
+            <p>Fill in the details to add a new product to inventory.</p>
+        </div>
+        <form action="#" method="POST">
+            <div class="modal-body">
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Supplier</label>
+                        <select class="form-control" name="supplier" required>
+                            {% for sup in suppliers %}
+                                <option value="{{ sup.name }}">{{ sup.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Category</label>
+                        <select class="form-control" name="category" onchange="handleCategoryChange(this, 'add-baby-care-size-group', 'add-medicine-dosage-group')" required>
+                            <option value="Medicines">Medicines</option>
+                            <option value="Vitamins & Supplements">Vitamins & Supplements</option>
+                            <option value="Medical Supplies">Medical Supplies</option>
+                            <option value="First Aid">First Aid</option>
+                            <option value="Personal Care">Personal Care</option>
+                            <option value="Baby Care">Baby Care</option>
+                            <option value="Medical Devices">Medical Devices</option>
+                            <option value="Skin Care">Skin Care</option>
+                            <option value="Eye & Ear Care">Eye & Ear Care</option>
+                            <option value="Health & Wellness">Health & Wellness</option>
+                            <option value="Orthopedic & Mobility Aids">Orthopedic & Mobility Aids</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Product Name</label>
+                        <input type="text" class="form-control" placeholder="Product name" name="product_name" required>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Brand Name</label>
+                        <input type="text" class="form-control" placeholder="Brand name" name="brand" required>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Generic Name <span style="font-size: 11px; color: var(--text-gray); font-weight: normal;">(Optional)</span></label>
+                        <input type="text" class="form-control" placeholder="Generic name" name="generic">
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Unit of Measure</label>
+                        <select class="form-control" name="unit_of_measure" required>
+                            <option value="Piece">Piece</option>
+                            <option value="Box">Box</option>
+                            <option value="Bottle">Bottle</option>
+                            <option value="Tube">Tube</option>
+                            <option value="Pack">Pack</option>
+                            <option value="Roll">Roll</option>
+                            <option value="Sachet">Sachet</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Reorder Point</label>
+                        <input type="number" class="form-control" placeholder="Reorder point" name="reorder_point" value="100" min="{{ (app_settings.get('low_stock_threshold', '40') | int) if app_settings else 40 }}" max="2500" oninput="if(this.value > 2500) this.value = 2500; const lowLimit = {{ (app_settings.get('low_stock_threshold', '40') | int) if app_settings else 40 }}; if(parseInt(this.value, 10) < lowLimit) this.setCustomValidity('Reorder Point cannot be less than Low Stock Threshold (' + lowLimit + ' units)'); else this.setCustomValidity('');" required>
+                    </div>
+                    <div class="form-group" id="add-baby-care-size-group" style="flex: 1; margin-bottom: 0; display: none;">
+                        <label>Size</label>
+                        <select class="form-control" id="add-baby-care-size" name="baby_size">
+                            <option value="">-- Select Size --</option>
+                            <option value="S">S</option>
+                            <option value="M">M</option>
+                            <option value="L">L</option>
+                            <option value="XL">XL</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="add-medicine-dosage-group" style="flex: 1; margin-bottom: 0; display: none;">
+                        <label>Dosage</label>
+                        <input type="text" class="form-control" id="add-medicine-dosage" name="med_dosage" placeholder="e.g. 500mg">
+                    </div>
+                </div>
+
+                <input type="hidden" name="description" value="">
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-cancel" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="modal-btn-save">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Medicine Modal -->
+<div id="edit-medicine-modal" class="modal-overlay" onclick="closeEditMedModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 600px;">
+        <button class="modal-close" onclick="closeEditMedModal()">&times;</button>
+        <div class="modal-header">
+            <h3>Edit Product</h3>
+            <p>Update the product details below.</p>
+        </div>
+        <form action="{{ url_for('edit_medicine') }}" method="POST">
+            <div class="modal-body">
+                <input type="hidden" id="edit-med-id" name="id">
+                
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Supplier</label>
+                        <select class="form-control" id="edit-med-supplier" name="supplier" required>
+                            {% for sup in suppliers %}
+                                <option value="{{ sup.name }}">{{ sup.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Category</label>
+                        <select class="form-control" id="edit-med-category" name="category" onchange="handleCategoryChange(this, 'edit-baby-care-size-group', 'edit-medicine-dosage-group')" required>
+                            <option value="Medicines">Medicines</option>
+                            <option value="Vitamins & Supplements">Vitamins & Supplements</option>
+                            <option value="Medical Supplies">Medical Supplies</option>
+                            <option value="First Aid">First Aid</option>
+                            <option value="Personal Care">Personal Care</option>
+                            <option value="Baby Care">Baby Care</option>
+                            <option value="Medical Devices">Medical Devices</option>
+                            <option value="Skin Care">Skin Care</option>
+                            <option value="Eye & Ear Care">Eye & Ear Care</option>
+                            <option value="Health & Wellness">Health & Wellness</option>
+                            <option value="Orthopedic & Mobility Aids">Orthopedic & Mobility Aids</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Product Name</label>
+                        <input type="text" class="form-control" id="edit-med-product" name="product_name" required>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Brand Name</label>
+                        <input type="text" class="form-control" id="edit-med-brand" name="brand" required>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Generic Name <span style="font-size: 11px; color: var(--text-gray); font-weight: normal;">(Optional)</span></label>
+                        <input type="text" class="form-control" id="edit-med-generic" name="generic">
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Unit of Measure</label>
+                        <select class="form-control" id="edit-med-unit" name="unit_of_measure" required>
+                            <option value="Piece">Piece</option>
+                            <option value="Box">Box</option>
+                            <option value="Bottle">Bottle</option>
+                            <option value="Tube">Tube</option>
+                            <option value="Pack">Pack</option>
+                            <option value="Roll">Roll</option>
+                            <option value="Sachet">Sachet</option>
+                        </select>
+                    </div>
+                </div>
+
+                <input type="hidden" id="edit-med-price" name="purchase_price">
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Reorder Point</label>
+                        <input type="number" class="form-control" id="edit-med-reorder" name="reorder_point" min="{{ (app_settings.get('low_stock_threshold', '40') | int) if app_settings else 40 }}" max="2500" oninput="if(this.value > 2500) this.value = 2500; const lowLimit = {{ (app_settings.get('low_stock_threshold', '40') | int) if app_settings else 40 }}; if(parseInt(this.value, 10) < lowLimit) this.setCustomValidity('Reorder Point cannot be less than Low Stock Threshold (' + lowLimit + ' units)'); else this.setCustomValidity('');" required>
+                    </div>
+                    <div class="form-group" id="edit-baby-care-size-group" style="flex: 1; margin-bottom: 0; display: none;">
+                        <label>Size</label>
+                        <select class="form-control" id="edit-baby-care-size" name="baby_size">
+                            <option value="">-- Select Size --</option>
+                            <option value="S">S</option>
+                            <option value="M">M</option>
+                            <option value="L">L</option>
+                            <option value="XL">XL</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="edit-medicine-dosage-group" style="flex: 1; margin-bottom: 0; display: none;">
+                        <label>Dosage</label>
+                        <input type="text" class="form-control" id="edit-medicine-dosage" name="med_dosage" placeholder="e.g. 500mg">
+                    </div>
+                </div>
+
+                <input type="hidden" id="edit-med-desc" name="description">
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-cancel" onclick="closeEditMedModal()">Cancel</button>
+                <button type="submit" class="modal-btn-save">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal() {
+        document.getElementById('add-medicine-modal').classList.add('active');
+    }
+    function closeModal() {
+        document.getElementById('add-medicine-modal').classList.remove('active');
+    }
+    function closeModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeModal();
+        }
+    }
+    function openEditMedModal(id, generic, brand, category, reorderPoint, productName, description, unitOfMeasure, purchasePrice, supplier) {
+        document.getElementById('edit-med-id').value = id;
+        document.getElementById('edit-med-generic').value = generic === 'None' ? '' : generic;
+        document.getElementById('edit-med-brand').value = brand;
+        document.getElementById('edit-med-category').value = category;
+        document.getElementById('edit-med-reorder').value = reorderPoint;
+        document.getElementById('edit-med-product').value = productName;
+        document.getElementById('edit-med-desc').value = description;
+        document.getElementById('edit-med-unit').value = unitOfMeasure;
+        document.getElementById('edit-med-price').value = purchasePrice;
+        document.getElementById('edit-med-supplier').value = supplier;
+        
+        // Handle Baby Care Size
+        const sizeGroup = document.getElementById('edit-baby-care-size-group');
+        const sizeSelect = document.getElementById('edit-baby-care-size');
+        if (category === 'Baby Care') {
+            sizeGroup.style.display = 'block';
+            sizeSelect.setAttribute('required', 'required');
+            const charObj = parseCharacteristics(description);
+            sizeSelect.value = charObj['Size'] || '';
+        } else {
+            sizeGroup.style.display = 'none';
+            sizeSelect.removeAttribute('required');
+            sizeSelect.value = '';
+        }
+
+        // Handle Medicines Dosage
+        const dosageGroup = document.getElementById('edit-medicine-dosage-group');
+        const dosageInput = document.getElementById('edit-medicine-dosage');
+        if (category === 'Medicines') {
+            dosageGroup.style.display = 'block';
+            dosageInput.setAttribute('required', 'required');
+            const charObj = parseCharacteristics(description);
+            dosageInput.value = charObj['Dosage'] || charObj['Strength'] || '';
+        } else {
+            dosageGroup.style.display = 'none';
+            dosageInput.removeAttribute('required');
+            dosageInput.value = '';
+        }
+        
+        document.getElementById('edit-medicine-modal').classList.add('active');
+    }
+    function closeEditMedModal() {
+        document.getElementById('edit-medicine-modal').classList.remove('active');
+    }
+    function closeEditMedModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeEditMedModal();
+        }
+    }
+    const productsData = [
+        {% for item in items %}
+        {
+            id: '{{ item.id | escape }}',
+            brand: '{{ item.brand | escape }}',
+            generic: '{{ item.generic | escape }}',
+            category: '{{ item.category | escape }}',
+            description: '{{ item.description | escape }}',
+            unit_of_measure: '{{ item.unit_of_measure | escape }}',
+            purchase_price: {{ item.purchase_price }},
+            stock: {{ item.stock }},
+            status: '{% if item.stock == 0 or item.status == "No Stock" %}No Stock{% else %}{{ item.status }}{% endif %}',
+            reorder_point: {{ item.reorder_point }},
+            supplier: '{{ item.supplier | escape }}'
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    function parseCharacteristics(descStr) {
+        const obj = {};
+        if (!descStr) return obj;
+        const pairs = descStr.split(',');
+        pairs.forEach(p => {
+            const parts = p.split(':');
+            if (parts.length >= 2) {
+                const key = parts[0].trim();
+                const val = parts.slice(1).join(':').trim();
+                obj[key] = val;
+            }
+        });
+        return obj;
+    }
+
+    function formatSizeAbbreviation(val) {
+        if (!val) return '-';
+        const lower = val.trim().toLowerCase();
+        if (lower === 'small' || lower === 's') return 'S';
+        if (lower === 'medium' || lower === 'm') return 'M';
+        if (lower === 'large' || lower === 'l') return 'L';
+        if (lower === 'extra large' || lower === 'xl') return 'XL';
+        return val;
+    }
+
+    const showGeneric = '{{ app_settings.show_generic }}' !== 'false';
+    const userRole    = '{{ session.get("role", "") }}';
+    const canEditMed  = {{ 'true' if has_permission('inventory_edit') else 'false' }};
+    const canArchiveMed = {{ 'true' if has_permission('inventory_archive') else 'false' }};
+    const canDeleteMed  = {{ 'true' if has_permission('inventory_delete') else 'false' }};
+
+    function filterTable() {
+        const search = document.getElementById('search-input').value.toLowerCase();
+        const status = document.getElementById('filter-status').value;
+        const categoryVal = document.getElementById('filter-category').value;
+        const category = categoryVal.toLowerCase();
+
+        // 1. Filter products list
+        const filteredProducts = productsData.filter(p => {
+            const matchesSearch = p.brand.toLowerCase().includes(search) || 
+                                  p.generic.toLowerCase().includes(search) || 
+                                  p.id.toLowerCase().includes(search);
+            const matchesStatus = !status || p.status === status;
+            const matchesCategory = !categoryVal || p.category.toLowerCase() === category;
+            return matchesSearch && matchesStatus && matchesCategory;
+        });
+
+        // 2. Category-specific characteristics columns
+        let charKeys = [];
+        if (categoryVal === 'Baby Care') {
+            charKeys = ['Size'];
+        } else if (categoryVal === 'Medicines') {
+            charKeys = ['Dosage'];
+        }
+
+        // 3. Reconstruct Thead
+        const theadRow = document.getElementById('thead-row');
+        let theadHtml = `
+            <th>SKU</th>
+            <th>Brand</th>
+        `;
+        if (showGeneric) {
+            theadHtml += `<th>Generic Name</th>`;
+        }
+        theadHtml += `<th>Category</th>`;
+        
+        charKeys.forEach(k => {
+            theadHtml += `<th>${k}</th>`;
+        });
+
+        theadHtml += `
+            <th>Stock</th>
+            <th>Status</th>
+            <th>Action</th>
+        `;
+        theadRow.innerHTML = theadHtml;
+
+        // 4. Reconstruct Tbody
+        const tbody = document.getElementById('tbody-rows');
+        if (filteredProducts.length === 0) {
+            const totalCols = 6 + (showGeneric ? 1 : 0) + charKeys.length;
+            tbody.innerHTML = `<tr><td colspan="${totalCols}" class="empty-state" style="text-align: center; padding: 24px; color: var(--text-gray);">No products found.</td></tr>`;
+            return;
+        }
+
+        let tbodyHtml = '';
+        filteredProducts.forEach(p => {
+            const charObj = parseCharacteristics(p.description);
+            let charTds = '';
+            charKeys.forEach(k => {
+                let val = charObj[k] || '-';
+                if (k === 'Size') {
+                    val = formatSizeAbbreviation(val);
+                } else if (k === 'Dosage') {
+                    val = charObj['Dosage'] || charObj['Strength'] || '-';
+                }
+                charTds += `<td style="font-size: 11px; font-weight: 500; color: var(--text-dark);">${val}</td>`;
+            });
+
+            const brandEsc = p.brand.replace(/'/g, "\\'");
+            const genericEsc = p.generic.replace(/'/g, "\\'");
+            const catEsc = p.category.replace(/'/g, "\\'");
+            const descEsc = p.description.replace(/'/g, "\\'");
+            const unitEsc = p.unit_of_measure.replace(/'/g, "\\'");
+            const supplierEsc = p.supplier.replace(/'/g, "\\'");
+
+            let statusClass = 'status-good';
+            let statusText = p.status;
+            if (p.stock == 0 || p.status === 'No Stock') {
+                statusClass = 'status-no-stock';
+                statusText = 'No Stock';
+            } else if (p.status === 'Low Stock') {
+                statusClass = 'status-low-stock';
+                statusText = 'Low Stock';
+            } else if (p.stock >= 2500) {
+                statusClass = 'status-overstocked';
+                statusText = `Overstocked (${p.stock}/2,500)`;
+            }
+
+            tbodyHtml += `
+                <tr>
+                    <td>${p.id}</td>
+                    <td>${p.brand}</td>
+            `;
+            if (showGeneric) {
+                tbodyHtml += `<td>${p.generic || 'N/A'}</td>`;
+            }
+            tbodyHtml += `<td>${p.category}</td>`;
+            tbodyHtml += charTds;
+            tbodyHtml += `
+                    <td style="font-weight: 600;">${p.stock}</td>
+                    <td>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </td>
+                    <td style="white-space:nowrap;">
+                        ${canEditMed ? `
+                        <button class="btn-icon-circle btn-edit" title="Edit" onclick="openEditMedModal('${p.id}', '${genericEsc}', '${brandEsc}', '${catEsc}', '${p.reorder_point}', '${brandEsc}', '${descEsc}', '${unitEsc}', '${p.purchase_price}', '${supplierEsc}')">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>` : ''}
+                        ${canArchiveMed ? `
+                        <form method="POST" action="/inventory/archive/${p.id}" style="display:inline;margin:0;"
+                            onsubmit="return confirmAction(event, 'Archive ${brandEsc}?')">
+                            <button type="submit" class="btn-icon-circle btn-archive" title="Archive">
+                                <i class="fa-solid fa-box-archive"></i>
+                            </button>
+                        </form>` : ''}
+                        ${canDeleteMed ? `
+                        <form method="POST" action="/inventory/trash/${p.id}" style="display:inline;margin:0;"
+                            onsubmit="return confirmAction(event, 'Delete ${brandEsc}?')">
+                            <button type="submit" class="btn-icon-circle btn-delete" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </form>` : ''}
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = tbodyHtml;
+        const table = document.querySelector('table');
+        if (table) {
+            if (table.rePaginate) {
+                table.dataset.currentPage = 1;
+                table.rePaginate();
+            } else if (window.paginateTable) {
+                paginateTable(table, 8);
+            }
+        }
+    }
+
+    // Initialize rendering on load
+    document.addEventListener('DOMContentLoaded', filterTable);
+
+    function openDetailsModal(id, brand, productName, generic, category, description, unitOfMeasure, purchasePrice, supplier, stock, reorderPoint) {
+        document.getElementById('details-med-sku-sub').innerText = `SKU: ${id}`;
+        document.getElementById('details-med-brand').innerText = brand;
+        document.getElementById('details-med-product').innerText = productName;
+        
+        const genericEl = document.getElementById('details-med-generic');
+        const genericLabelEl = document.getElementById('details-med-generic-label');
+        if (generic && generic !== 'None' && generic !== 'N/A' && generic !== '') {
+            genericEl.innerText = generic;
+            genericEl.style.display = 'inline';
+            genericLabelEl.style.display = 'inline';
+        } else {
+            genericEl.style.display = 'none';
+            genericLabelEl.style.display = 'none';
+        }
+        
+        document.getElementById('details-med-category').innerText = category;
+        document.getElementById('details-med-unit').innerText = unitOfMeasure;
+        document.getElementById('details-med-supplier').innerText = supplier;
+        document.getElementById('details-med-stock').innerText = stock;
+        document.getElementById('details-med-reorder').innerText = reorderPoint;
+        
+        // Handle Details Size
+        const sizeEl = document.getElementById('details-med-size');
+        const sizeLabelEl = document.getElementById('details-med-size-label');
+        const charObj = parseCharacteristics(description);
+        if (category === 'Baby Care' && charObj['Size']) {
+            sizeEl.innerText = formatSizeAbbreviation(charObj['Size']);
+            sizeEl.style.display = 'inline';
+            sizeLabelEl.style.display = 'inline';
+        } else {
+            sizeEl.style.display = 'none';
+            sizeLabelEl.style.display = 'none';
+        }
+
+        // Handle Details Dosage
+        const dosageEl = document.getElementById('details-med-dosage');
+        const dosageLabelEl = document.getElementById('details-med-dosage-label');
+        if (category === 'Medicines' && (charObj['Dosage'] || charObj['Strength'])) {
+            dosageEl.innerText = charObj['Dosage'] || charObj['Strength'];
+            dosageEl.style.display = 'inline';
+            dosageLabelEl.style.display = 'inline';
+        } else {
+            dosageEl.style.display = 'none';
+            dosageLabelEl.style.display = 'none';
+        }
+        
+        document.getElementById('details-med-desc').innerText = description || 'No characteristics specified.';
+        document.getElementById('details-medicine-modal').classList.add('active');
+    }
+
+    function closeDetailsModal() {
+        document.getElementById('details-medicine-modal').classList.remove('active');
+    }
+
+    function closeDetailsModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeDetailsModal();
+        }
+    }
+
+    function handleCategoryChange(selectElement, sizeGroupId, dosageGroupId) {
+        const sizeGroup = document.getElementById(sizeGroupId);
+        const sizeSelect = sizeGroup.querySelector('select');
+        const dosageGroup = document.getElementById(dosageGroupId);
+        const dosageInput = dosageGroup.querySelector('input');
+        
+        if (selectElement.value === 'Baby Care') {
+            sizeGroup.style.display = 'block';
+            sizeSelect.setAttribute('required', 'required');
+            dosageGroup.style.display = 'none';
+            dosageInput.removeAttribute('required');
+            dosageInput.value = '';
+        } else if (selectElement.value === 'Medicines') {
+            dosageGroup.style.display = 'block';
+            dosageInput.setAttribute('required', 'required');
+            sizeGroup.style.display = 'none';
+            sizeSelect.removeAttribute('required');
+            sizeSelect.value = '';
+        } else {
+            sizeGroup.style.display = 'none';
+            sizeSelect.removeAttribute('required');
+            sizeSelect.value = '';
+            dosageGroup.style.display = 'none';
+            dosageInput.removeAttribute('required');
+            dosageInput.value = '';
+        }
+    }
+
+    function updateSizeFieldVisibility() {
+        // Handled by handleCategoryChange and modal load function
+    }
+
+    // Set submit listeners to intercept and bundle Baby Care size or Medicines dosage inside description field
+    document.addEventListener('DOMContentLoaded', () => {
+        const addForm = document.querySelector('#add-medicine-modal form');
+        if (addForm) {
+            addForm.addEventListener('submit', function() {
+                const cat = this.querySelector('select[name="category"]').value;
+                const descInput = this.querySelector('input[name="description"]');
+                if (cat === 'Baby Care') {
+                    const size = this.querySelector('select[name="baby_size"]').value;
+                    descInput.value = size ? `Size: ${size}` : '';
+                } else if (cat === 'Medicines') {
+                    const dosage = this.querySelector('input[name="med_dosage"]').value;
+                    descInput.value = dosage ? `Dosage: ${dosage}` : '';
+                } else {
+                    descInput.value = '';
+                }
+            });
+        }
+
+        const editForm = document.querySelector('#edit-medicine-modal form');
+        if (editForm) {
+            editForm.addEventListener('submit', function() {
+                const cat = this.querySelector('select[name="category"]').value;
+                const descInput = this.querySelector('input[name="description"]');
+                if (cat === 'Baby Care') {
+                    const size = this.querySelector('select[name="baby_size"]').value;
+                    descInput.value = size ? `Size: ${size}` : '';
+                } else if (cat === 'Medicines') {
+                    const dosage = this.querySelector('input[name="med_dosage"]').value;
+                    descInput.value = dosage ? `Dosage: ${dosage}` : '';
+                } else {
+                    descInput.value = '';
+                }
+            });
+        }
+    });
+</script>
+
+<!-- Details Modal -->
+<div id="details-medicine-modal" class="modal-overlay" onclick="closeDetailsModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 500px;">
+        <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+        <div class="modal-header">
+            <h3>Product Details</h3>
+            <p id="details-med-sku-sub" style="font-size: 12px; color: var(--text-gray); margin-top: 4px;"></p>
+        </div>
+        <div class="modal-body" style="line-height: 1.6;">
+            <div style="display: grid; grid-template-columns: 120px 1fr; gap: 12px; margin-bottom: 8px; font-size: 13px;">
+                <strong>Brand:</strong> <span id="details-med-brand"></span>
+                <strong>Product Name:</strong> <span id="details-med-product"></span>
+                <strong id="details-med-generic-label">Generic Name:</strong> <span id="details-med-generic"></span>
+                <strong>Category:</strong> <span id="details-med-category"></span>
+                <strong>Unit:</strong> <span id="details-med-unit"></span>
+                <strong id="details-med-size-label" style="display: none;">Size:</strong> <span id="details-med-size" style="display: none;"></span>
+                <strong id="details-med-dosage-label" style="display: none;">Dosage:</strong> <span id="details-med-dosage" style="display: none;"></span>
+                <strong>Supplier:</strong> <span id="details-med-supplier"></span>
+                <strong>Current Stock:</strong> <span id="details-med-stock" style="font-weight: 600;"></span>
+                <strong>Reorder Point:</strong> <span id="details-med-reorder"></span>
+            </div>
+            <!-- Characteristics removed -->
+        </div>
+        <div class="modal-footer" style="padding-top: 16px;">
+            <button type="button" class="btn-primary" style="width: auto; padding: 8px 24px; font-size: 12px; border-radius: 20px;" onclick="closeDetailsModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
