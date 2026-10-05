@@ -1,0 +1,1057 @@
+{% extends 'base.html' %}
+{% block title %}Batch Stocks{% endblock %}
+
+{% block content %}
+<div class="panel">
+    <div class="panel-header" style="display: flex; flex-direction: column; gap: 16px; align-items: stretch;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <h3 style="margin: 0;">Batch Stocks</h3>
+                <span class="list-count-badge">
+                    {{ items | length }} batch(es)
+                </span>
+            </div>
+            <button type="button" class="btn-action-outline" onclick="openAuditReviewsModal()" style="border-radius: 20px; font-size: 12px; font-weight: 600; padding: 6px 16px; color: {% if pending_audits | length > 0 %}#991b1b{% else %}#475569{% endif %}; border-color: {% if pending_audits | length > 0 %}#fca5a5{% else %}#cbd5e1{% endif %}; background: {% if pending_audits | length > 0 %}#fdf2f2{% else %}transparent{% endif %}; display: inline-flex; align-items: center; gap: 7px; cursor: pointer; transition: all 0.2s;" title="Review physical shelf count adjustments">
+                <i class="fa-solid fa-clipboard-check"></i> Physical Count Reviews
+                {% if pending_audits | length > 0 %}
+                <span style="background: #dc2626; color: white; border-radius: 10px; padding: 1px 7px; font-size: 10.5px; font-weight: 700; line-height: 1.2;">{{ pending_audits | length }} Pending</span>
+                {% endif %}
+            </button>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%;">
+            <div class="search-input" style="margin-bottom: 0; max-width: 320px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="search-input" placeholder="Search products" maxlength="25" onkeyup="filterTable()" oninput="filterTable()">
+            </div>
+            <div class="filter-container">
+                <i class="fa-solid fa-filter"></i>
+                <select id="filter-status" class="filter-select" onchange="filterTable()">
+                    <option value="">All Statuses</option>
+                    <option value="missing-dates">Missing Dates (Pending)</option>
+                    <option value="Good Stock">Good Stock</option>
+                    <option value="Low Stock">Low Stock</option>
+                    <option value="Overstocked">Overstocked</option>
+                </select>
+                <span style="color: var(--border-light); font-size: 14px; user-select: none; margin: 0 4px;">|</span>
+                <select id="filter-category" class="filter-select" onchange="filterTable()">
+                    <option value="">All Categories</option>
+                    {% for cat in items | map(attribute='category') | unique | sort %}
+                        <option value="{{ cat }}">{{ cat }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    {% if pending_audits | length > 0 %}
+    <!-- Pending Count Audits Banner -->
+    <div style="background: #fdf2f2; border: 1.5px solid rgba(220, 38, 38, 0.35); border-radius: 12px; padding: 12px 18px; margin: 16px 24px 0 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 6px rgba(220, 38, 38, 0.08);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: #dc2626; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0;">
+                <i class="fa-solid fa-clipboard-question"></i>
+            </div>
+            <div>
+                <div style="font-size: 13.5px; font-weight: 700; color: #991b1b;">
+                    {{ pending_audits | length }} Physical Shelf Count Discrepanc{% if pending_audits | length > 1 %}ies{% else %}y{% endif %} Pending Verification
+                </div>
+                <div style="font-size: 12px; color: #b91c1c; margin-top: 1px;">
+                    Staff or Admin reported shelf counts differing from system stock. Verify and approve to update inventory, or deny to maintain current system numbers.
+                </div>
+            </div>
+        </div>
+        <button type="button" class="btn-primary" style="background: #dc2626; border-color: #dc2626; font-size: 12.5px; font-weight: 600; padding: 7px 18px; border-radius: 20px; white-space: nowrap; cursor: pointer;" onclick="openAuditReviewsModal()">
+            <i class="fa-solid fa-list-check"></i> Review Requests ({{ pending_audits | length }})
+        </button>
+    </div>
+    {% endif %}
+
+    <table style="width: 100%; table-layout: fixed;">
+        <thead>
+            <tr>
+                <th style="width: 12%; white-space: nowrap;">Batch ID</th>
+                <th style="width: 18%; white-space: nowrap;">Product</th>
+                <th style="width: 14%; white-space: nowrap;">Mfg. Date</th>
+                <th style="width: 14%; white-space: nowrap;">Expiry Date</th>
+                <th style="width: 17%; text-align: center; white-space: nowrap;">Current Quantity</th>
+                <th style="width: 14%; text-align: center; white-space: nowrap;">Status</th>
+                <th style="width: 11%; text-align: center; white-space: nowrap;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr data-brand="{{ item.medicine | lower }}" data-batch="{{ item.batch_id | lower }}" data-supplier="{{ item.supplier | lower }}" data-category="{{ item.category | lower }}" data-status="{{ item.stock_status }}" data-missing="{{ 'true' if item.missing_dates else 'false' }}">
+                <td style="white-space: nowrap; font-weight: 700; color: #1e293b;">{{ item.batch_id }}</td>
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ item.medicine }}">{{ item.medicine }}</td>
+                <td style="white-space: nowrap;">
+                    {% if not item.mfg_date or item.mfg_date == '—' %}
+                        <span class="status-badge" style="background: rgba(239, 68, 68, 0.12); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.25); font-size: 10.5px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="fa-solid fa-circle-exclamation"></i> Missing Mfg Date
+                        </span>
+                    {% else %}
+                        {{ item.mfg_date }}
+                    {% endif %}
+                </td>
+                <td style="white-space: nowrap;">
+                    {% if not item.expiry_date or item.expiry_date == '—' or item.status == 'Pending' %}
+                        <span class="status-badge" style="background: rgba(245, 158, 11, 0.14); color: #d97706; border: 1px solid rgba(245, 158, 11, 0.35); font-size: 10.5px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Missing Expiry Date
+                        </span>
+                    {% else %}
+                        {{ item.expiry_date }}
+                    {% endif %}
+                </td>
+                <td style="text-align: center; white-space: nowrap;">
+                    <span style="font-weight: 700; color: var(--text);">{{ "{:,}".format(item.current_qty) }} {{ item.base_unit }}{% if item.current_qty > 1 and not item.base_unit.endswith('s') %}s{% endif %}</span>
+                    {% if item.pending_actual_count %}
+                    <div style="margin-top: 3px;">
+                        <span style="font-size: 10.5px; color: #b45309; font-weight: 600; background: #fef3c7; border: 1px solid #fde68a; border-radius: 4px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 4px;" title="Physical count of {{ '{:,}'.format(item.pending_actual_count.actual_qty) }} {{ item.base_unit }}s submitted by {{ item.pending_actual_count.submitted_by }} ({{ item.pending_actual_count.submitted_by_role }}), pending Superadmin approval">
+                            <i class="fa-solid fa-clock"></i> Count Pending: {{ "{:,}".format(item.pending_actual_count.actual_qty) }}
+                        </span>
+                    </div>
+                    {% endif %}
+                </td>
+                <td style="text-align: center; white-space: nowrap;">
+                    {% if item.stock_status == 'Overstocked' %}
+                        <span class="status-badge status-overstocked">Overstocked</span>
+                    {% elif item.stock_status == 'Low Stock' %}
+                        <span class="status-badge status-low-stock">Low Stock</span>
+                    {% elif item.stock_status == 'No Stock' %}
+                        <span class="status-badge status-no-stock">No Stock</span>
+                    {% else %}
+                        <span class="status-badge status-good">Good Stock</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: center; white-space: nowrap;">
+                    <div style="display: inline-flex; align-items: center; justify-content: center; gap: 6px;">
+                        <!-- Actual / Physical Shelf Count -->
+                        <button type="button" class="btn-icon-circle btn-count" title="Actual / Physical Shelf Count"
+                            style="color: #0d9488; border-color: rgba(13,148,136,0.3); background: rgba(13,148,136,0.08);"
+                            data-batch-id="{{ item.batch_id }}"
+                            data-medicine="{{ item.medicine | e }}"
+                            data-generic="{{ item.generic | e }}"
+                            data-category="{{ item.category | e }}"
+                            data-qty="{{ item.current_qty }}"
+                            data-base-unit="{{ item.base_unit | e }}"
+                            data-packaging-unit="{{ item.packaging_unit | e }}"
+                            data-conversion-qty="{{ item.conversion_qty }}"
+                            {% if item.pending_actual_count %}
+                            data-pending-qty="{{ item.pending_actual_count.actual_qty }}"
+                            data-pending-by="{{ item.pending_actual_count.submitted_by | e }}"
+                            data-pending-role="{{ item.pending_actual_count.submitted_by_role | e }}"
+                            data-pending-reason="{{ item.pending_actual_count.reason | e }}"
+                            {% endif %}
+                            onclick="handleActualCountClick(this)">
+                            <i class="fa-solid fa-clipboard-check"></i>
+                        </button>
+                        <!-- View Batch Details -->
+                        <button type="button" class="btn-icon-circle btn-view" title="View Batch Details"
+                            data-batch-id="{{ item.batch_id }}"
+                            data-medicine="{{ item.medicine | e }}"
+                            data-generic="{{ item.generic | e }}"
+                            data-category="{{ item.category | e }}"
+                            data-qty="{{ item.current_qty }}"
+                            data-base-unit="{{ item.base_unit | e }}"
+                            data-packaging-unit="{{ item.packaging_unit | e }}"
+                            data-conversion-qty="{{ item.conversion_qty }}"
+                            data-mfg-date="{{ item.mfg_date }}"
+                            data-expiry-date="{{ item.expiry_date }}"
+                            data-status="{{ item.status }}"
+                            data-stock-status="{{ item.stock_status }}"
+                            data-received-date="{{ item.received_date | e }}"
+                            data-supplier="{{ item.supplier | e }}"
+                            onclick="handleViewBatchClick(this)">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        <!-- Edit Batch Stock (Only for Admin & Super Admin when dates are incomplete/missing; locked permanently once filled) -->
+                        {% if item.missing_dates and session.get('role') in ['Admin', 'Superadmin', 'Super Admin'] %}
+                        <button type="button" class="btn-icon-circle btn-edit" title="Fill In Batch Dates & Details (One-time completion)"
+                            data-batch-id="{{ item.batch_id }}"
+                            data-medicine="{{ item.medicine | e }}"
+                            data-generic="{{ item.generic | e }}"
+                            data-category="{{ item.category | e }}"
+                            data-qty="{{ item.current_qty }}"
+                            data-base-unit="{{ item.base_unit | e }}"
+                            data-packaging-unit="{{ item.packaging_unit | e }}"
+                            data-conversion-qty="{{ item.conversion_qty }}"
+                            data-mfg-iso="{{ item.mfg_date_iso }}"
+                            data-expiry-iso="{{ item.expiry_date_iso }}"
+                            onclick="handleEditBatchStockClick(this)">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    function filterTable() {
+        const search = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+        const status = document.getElementById('filter-status')?.value || '';
+        const category = (document.getElementById('filter-category')?.value || '').toLowerCase();
+        const table = document.querySelector('table');
+
+        document.querySelectorAll('tbody tr').forEach(row => {
+            const brand = row.dataset.brand || '';
+            const batch = row.dataset.batch || '';
+            const supplier = row.dataset.supplier || '';
+            const rStatus = row.dataset.status || '';
+            const rCategory = row.dataset.category || '';
+            const rMissing = row.dataset.missing || '';
+            
+            const matchesSearch = !search || brand.includes(search) || batch.includes(search) || supplier.includes(search);
+            let matchesStatus = true;
+            if (status === 'missing-dates') {
+                matchesStatus = (rMissing === 'true');
+            } else if (status) {
+                matchesStatus = (rStatus === status);
+            }
+            const matchesCategory = !category || rCategory === category;
+            
+            const isMatch = matchesSearch && matchesStatus && matchesCategory;
+            row.dataset.filteredHidden = isMatch ? 'false' : 'true';
+            row.style.display = isMatch ? '' : 'none';
+        });
+
+        if (table) {
+            if (table.rePaginate) {
+                table.rePaginate();
+            } else if (typeof window.paginateTable === 'function') {
+                window.paginateTable(table, 10);
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', filterTable);
+        }
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('filter') === 'missing_dates') {
+            const filterStatus = document.getElementById('filter-status');
+            if (filterStatus) {
+                filterStatus.value = 'missing-dates';
+            }
+        }
+        filterTable();
+    });
+
+    /* ── Edit Batch Stock Modal Handler ── */
+    function handleEditBatchStockClick(btn) {
+        if (!btn) return;
+        const d = btn.dataset;
+        openEditBatchStockModal(
+            d.batchId,
+            d.medicine,
+            d.generic,
+            d.category,
+            parseInt(d.qty, 10) || 0,
+            d.mfgIso,
+            d.expiryIso,
+            d.baseUnit || 'Piece',
+            d.packagingUnit || 'Box',
+            parseInt(d.conversionQty, 10) || 1
+        );
+    }
+
+    function openEditBatchStockModal(batchId, medicine, generic, category, currentQty, mfgIso, expiryIso, baseUnit, packagingUnit, conversionQty) {
+        const form = document.getElementById('editBatchStockForm');
+        if (form) {
+            form.action = '/batches/' + encodeURIComponent(batchId) + '/edit-stock';
+        }
+        const titleEl = document.getElementById('edit_batch_modal_title');
+        if (titleEl) titleEl.textContent = batchId;
+        
+        const badge = document.getElementById('modal_batch_id_badge');
+        if (badge) badge.textContent = batchId;
+        
+        const subtitle = document.getElementById('edit_batch_subtitle');
+        if (subtitle) subtitle.textContent = 'Batch ' + batchId + (category ? ' · ' + category : '');
+        
+        const medEl = document.getElementById('modal_batch_medicine_name');
+        if (medEl) medEl.textContent = medicine;
+        
+        const genEl = document.getElementById('modal_batch_generic_name');
+        if (genEl) genEl.textContent = (generic && generic !== 'N/A') ? generic : '—';
+        
+        const catEl = document.getElementById('modal_batch_category');
+        if (catEl) catEl.textContent = category || 'Pharmaceutical Product';
+        
+        const bu = baseUnit || 'Piece';
+        window._currentEditBatchBaseUnit = bu;
+        const stockEl = document.getElementById('modal_batch_current_stock_display');
+        if (stockEl) stockEl.textContent = currentQty.toLocaleString() + ' ' + bu + (currentQty > 1 && !bu.endsWith('s') ? 's' : '');
+        
+        const mfgInput = document.getElementById('modal_batch_mfg_date');
+        const expiryInput = document.getElementById('modal_batch_expiry_date');
+        const qtyInput = document.getElementById('modal_batch_qty_input');
+        
+        if (mfgInput) mfgInput.value = mfgIso || '';
+        if (expiryInput) expiryInput.value = expiryIso || '';
+        if (qtyInput) qtyInput.value = currentQty;
+
+        const pkgSelect = document.getElementById('modal_batch_pkg_unit');
+        if (pkgSelect) pkgSelect.value = packagingUnit || 'Box';
+
+        const convInput = document.getElementById('modal_batch_conv_qty');
+        if (convInput) convInput.value = conversionQty || 1;
+
+        updateBatchConversionPreview();
+        
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (mfgInput) {
+            mfgInput.max = todayStr;
+        }
+        if (expiryInput) {
+            if (mfgInput && mfgInput.value) {
+                expiryInput.min = mfgInput.value;
+            } else {
+                expiryInput.min = todayStr;
+            }
+        }
+        
+        const overlay = document.getElementById('editBatchStockModalOverlay');
+        if (overlay) overlay.style.display = 'flex';
+    }
+
+    function updateBatchConversionPreview() {
+        const pkgUnit = document.getElementById('modal_batch_pkg_unit')?.value || 'Box';
+        const convQty = parseInt(document.getElementById('modal_batch_conv_qty')?.value, 10) || 1;
+        const bu = window._currentEditBatchBaseUnit || 'Piece';
+        const previewEl = document.getElementById('modal_batch_conversion_preview');
+        if (previewEl) {
+            previewEl.innerHTML = `<i class="fa-solid fa-calculator"></i> <span>Conversion: 1 ${pkgUnit} = ${convQty} ${bu}${convQty > 1 && !bu.endsWith('s') ? 's' : ''}</span>`;
+        }
+    }
+
+    function closeEditBatchStockModal() {
+        const overlay = document.getElementById('editBatchStockModalOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    function onMfgDateChange() {
+        const mfgInput = document.getElementById('modal_batch_mfg_date');
+        const expiryInput = document.getElementById('modal_batch_expiry_date');
+        if (mfgInput && expiryInput && mfgInput.value) {
+            expiryInput.min = mfgInput.value;
+            if (expiryInput.value && expiryInput.value < mfgInput.value) {
+                expiryInput.value = '';
+            }
+        }
+    }
+
+    function validateBatchStockForm() {
+        const mfgInput = document.getElementById('modal_batch_mfg_date');
+        const expiryInput = document.getElementById('modal_batch_expiry_date');
+        
+        if (!mfgInput || !mfgInput.value) {
+            alert('Please select the Manufactured Date for this batch.');
+            if (mfgInput) mfgInput.focus();
+            return false;
+        }
+        if (!expiryInput || !expiryInput.value) {
+            alert('Please select the Expiry Date for this batch.');
+            if (expiryInput) expiryInput.focus();
+            return false;
+        }
+        if (mfgInput.value && expiryInput.value && expiryInput.value < mfgInput.value) {
+            alert('Expiry Date cannot be earlier than Manufactured Date.');
+            expiryInput.focus();
+            return false;
+        }
+        return true;
+    }
+
+    /* ── View Batch Modal Handler ── */
+    function handleViewBatchClick(btn) {
+        if (!btn) return;
+        const d = btn.dataset;
+        openViewBatchModal(
+            d.batchId,
+            d.medicine,
+            d.generic,
+            d.category,
+            parseInt(d.qty, 10) || 0,
+            d.mfgDate,
+            d.expiryDate,
+            d.status,
+            d.stockStatus,
+            d.receivedDate,
+            d.supplier,
+            d.baseUnit || 'Piece',
+            d.packagingUnit || 'Box',
+            parseInt(d.conversionQty, 10) || 1
+        );
+    }
+
+    function openViewBatchModal(batchId, medicine, generic, category, currentQty, mfgDate, expiryDate, status, stockStatus, receivedDate, supplier, baseUnit, packagingUnit, conversionQty) {
+        const idBadge = document.getElementById('view_batch_id_badge');
+        if (idBadge) idBadge.textContent = batchId;
+
+        const titleEl = document.getElementById('view_batch_modal_title');
+        if (titleEl) titleEl.textContent = batchId;
+
+        const medEl = document.getElementById('view_batch_medicine_name');
+        if (medEl) medEl.textContent = medicine || '—';
+
+        const genEl = document.getElementById('view_batch_generic_name');
+        if (genEl) genEl.textContent = (generic && generic !== 'N/A') ? generic : (category || 'Pharmaceutical Product');
+
+        const catEl = document.getElementById('view_batch_category');
+        if (catEl) catEl.textContent = category || '—';
+
+        const qtyEl = document.getElementById('view_batch_current_stock');
+        const bu = baseUnit || 'Piece';
+        if (qtyEl) qtyEl.textContent = currentQty.toLocaleString() + ' ' + bu + (currentQty > 1 && !bu.endsWith('s') ? 's' : '');
+
+        const pUnit = packagingUnit || 'Box';
+        const cQty = parseInt(conversionQty, 10) || 1;
+        const pkgEl = document.getElementById('view_batch_packaging_unit');
+        if (pkgEl) pkgEl.textContent = pUnit;
+        const convEl = document.getElementById('view_batch_conversion_qty');
+        if (convEl) {
+            convEl.textContent = `${cQty} ${bu}${cQty > 1 && !bu.endsWith('s') ? 's' : ''} (1 ${pUnit} = ${cQty} ${bu}${cQty > 1 && !bu.endsWith('s') ? 's' : ''})`;
+        }
+
+        const suppEl = document.getElementById('view_batch_supplier');
+        if (suppEl) {
+            suppEl.textContent = supplier || '—';
+            suppEl.title = supplier || '';
+        }
+
+        const recEl = document.getElementById('view_batch_received_date_text');
+        if (recEl) {
+            recEl.textContent = (receivedDate && receivedDate !== '—') ? receivedDate : '—';
+        }
+
+        const mfgEl = document.getElementById('view_batch_mfg_date');
+        if (mfgEl) {
+            if (!mfgDate || mfgDate === '—' || mfgDate === 'Pending') {
+                mfgEl.innerHTML = '<span style="color: #dc2626; font-weight: 600;"><i class="fa-solid fa-circle-exclamation"></i> Missing Mfg Date</span>';
+            } else {
+                mfgEl.textContent = mfgDate;
+            }
+        }
+
+        const expEl = document.getElementById('view_batch_expiry_date');
+        if (expEl) {
+            if (!expiryDate || expiryDate === '—' || expiryDate === 'Pending') {
+                expEl.innerHTML = '<span style="color: #d97706; font-weight: 600;"><i class="fa-solid fa-triangle-exclamation"></i> Missing Expiry Date</span>';
+            } else {
+                expEl.textContent = expiryDate;
+            }
+        }
+
+        const expBadge = document.getElementById('view_batch_expiry_badge');
+        if (expBadge) {
+            if (status === 'Expired') {
+                expBadge.className = 'status-badge status-expired';
+                expBadge.textContent = 'Expired';
+            } else if (status === 'Expiring Soon' || status === 'Near Expiry' || status === 'Warning') {
+                expBadge.className = 'status-badge status-warning';
+                expBadge.textContent = status;
+            } else if (status === 'Pending' || !expiryDate || expiryDate === '—') {
+                expBadge.className = 'status-badge';
+                expBadge.style.background = 'rgba(245, 158, 11, 0.14)';
+                expBadge.style.color = '#d97706';
+                expBadge.style.border = '1px solid rgba(245, 158, 11, 0.35)';
+                expBadge.textContent = 'Pending Dates';
+            } else {
+                expBadge.className = 'status-badge status-good';
+                expBadge.textContent = 'Good';
+            }
+        }
+
+        const stockBadge = document.getElementById('view_batch_stock_badge');
+        if (stockBadge) {
+            if (stockStatus === 'Overstocked') {
+                stockBadge.className = 'status-badge status-overstocked';
+                stockBadge.textContent = 'Overstocked';
+            } else if (stockStatus === 'Low Stock') {
+                stockBadge.className = 'status-badge status-low-stock';
+                stockBadge.textContent = 'Low Stock';
+            } else if (stockStatus === 'No Stock') {
+                stockBadge.className = 'status-badge status-no-stock';
+                stockBadge.textContent = 'No Stock';
+            } else {
+                stockBadge.className = 'status-badge status-good';
+                stockBadge.textContent = 'Good Stock';
+            }
+        }
+
+        const overlay = document.getElementById('viewBatchModalOverlay');
+        if (overlay) overlay.style.display = 'flex';
+    }
+
+    function closeViewBatchModal() {
+        const overlay = document.getElementById('viewBatchModalOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    /* ── Actual Count (Physical Shelf Audit) Handlers ── */
+    function handleActualCountClick(btn) {
+        if (!btn) return;
+        const d = btn.dataset;
+        openActualCountModal(
+            d.batchId,
+            d.medicine,
+            d.generic,
+            d.category,
+            parseInt(d.qty, 10) || 0,
+            d.baseUnit || 'Piece',
+            d.packagingUnit || 'Box',
+            parseInt(d.conversionQty, 10) || 1,
+            d.pendingQty ? parseInt(d.pendingQty, 10) : null,
+            d.pendingBy || '',
+            d.pendingRole || '',
+            d.pendingReason || ''
+        );
+    }
+
+    function openActualCountModal(batchId, medicine, generic, category, currentQty, baseUnit, packagingUnit, conversionQty, pendingQty, pendingBy, pendingRole, pendingReason) {
+        const form = document.getElementById('actualCountForm');
+        if (form) {
+            form.action = '/batches/' + encodeURIComponent(batchId) + '/actual-count';
+        }
+
+        const medEl = document.getElementById('modal_count_medicine_name');
+        if (medEl) medEl.textContent = medicine;
+
+        const genEl = document.getElementById('modal_count_generic_name');
+        if (genEl) genEl.textContent = (generic && generic !== 'N/A') ? generic : '—';
+
+        const batchBadge = document.getElementById('modal_count_batch_badge');
+        if (batchBadge) batchBadge.textContent = 'Batch ' + batchId;
+
+        const catBadge = document.getElementById('modal_count_category_badge');
+        if (catBadge) catBadge.textContent = category || 'Product';
+
+        const bu = baseUnit || 'Piece';
+        window._currentAuditSystemQty = currentQty;
+        window._currentAuditBaseUnit = bu;
+
+        const sysQtyDisplay = document.getElementById('modal_count_system_qty_display');
+        if (sysQtyDisplay) sysQtyDisplay.textContent = currentQty.toLocaleString() + ' ' + bu + (currentQty > 1 && !bu.endsWith('s') ? 's' : '');
+
+        const unitLabel = document.getElementById('modal_count_unit_label');
+        if (unitLabel) unitLabel.textContent = '(' + bu + 's)';
+
+        const input = document.getElementById('actual_count_input');
+        if (input) {
+            input.value = (pendingQty !== null && pendingQty !== undefined) ? pendingQty : currentQty;
+        }
+
+        const reasonEl = document.getElementById('actual_count_reason');
+        if (reasonEl) {
+            reasonEl.value = pendingReason || '';
+        }
+
+        const alertBox = document.getElementById('modal_count_pending_alert');
+        const alertText = document.getElementById('modal_count_pending_alert_text');
+        if (alertBox && alertText) {
+            if (pendingQty !== null && pendingQty !== undefined) {
+                alertBox.style.display = 'block';
+                alertText.innerHTML = `A count audit of <strong>${pendingQty.toLocaleString()} ${bu}s</strong> was previously submitted by <strong>${escapeHtml(pendingBy)}</strong> (${escapeHtml(pendingRole)}), pending Superadmin verification. Resubmitting will update this request.`;
+            } else {
+                alertBox.style.display = 'none';
+            }
+        }
+
+        updateCountVariancePreview();
+
+        const overlay = document.getElementById('actualCountModalOverlay');
+        if (overlay) overlay.style.display = 'flex';
+    }
+
+    function closeActualCountModal() {
+        const overlay = document.getElementById('actualCountModalOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    function updateCountVariancePreview() {
+        const input = document.getElementById('actual_count_input');
+        const previewEl = document.getElementById('actual_count_variance_preview');
+        if (!input || !previewEl) return;
+
+        const val = input.value.trim();
+        if (val === '') {
+            previewEl.style.display = 'none';
+            return;
+        }
+
+        const actual = parseInt(val, 10);
+        const system = window._currentAuditSystemQty !== undefined ? window._currentAuditSystemQty : 0;
+        const bu = window._currentAuditBaseUnit || 'Piece';
+        const pluralU = bu + (!bu.endsWith('s') ? 's' : '');
+        const diff = actual - system;
+
+        if (diff === 0) {
+            previewEl.style.display = 'none';
+            previewEl.innerHTML = '';
+        } else if (diff > 0) {
+            previewEl.style.display = 'block';
+            previewEl.innerHTML = `
+                <div style="background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 8px; padding: 10px 14px; color: #065f46; font-size: 12.5px;">
+                    <div style="font-weight: 700;">Found Stock: ${diff.toLocaleString()} ${pluralU}</div>
+                    <div style="font-size: 11.5px; color: #047857; margin-top: 2px;">
+                        System stock is ${system.toLocaleString()}, physical shelf count is ${actual.toLocaleString()}. Superadmin verification required to approve stock-in.
+                    </div>
+                </div>
+            `;
+        } else {
+            previewEl.style.display = 'block';
+            const absDiff = Math.abs(diff);
+            previewEl.innerHTML = `
+                <div style="background: #fff1f2; border: 1.5px solid #fecdd3; border-radius: 8px; padding: 10px 14px; color: #9f1239; font-size: 12.5px;">
+                    <div style="font-weight: 700;">Missing Stock: ${absDiff.toLocaleString()} ${pluralU}</div>
+                    <div style="font-size: 11.5px; color: #be123c; margin-top: 2px;">
+                        System stock is ${system.toLocaleString()}, physical shelf count is ${actual.toLocaleString()}. Superadmin verification required to adjust stock-out.
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    function openAuditReviewsModal() {
+        const overlay = document.getElementById('auditReviewsModalOverlay');
+        if (overlay) overlay.style.display = 'flex';
+    }
+
+    function closeAuditReviewsModal() {
+        const overlay = document.getElementById('auditReviewsModalOverlay');
+        if (overlay) overlay.style.display = 'none';
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('open_audit_reviews') === '1') {
+            openAuditReviewsModal();
+        }
+    });
+</script>
+
+<!-- ── Edit Batch Stock Modal Overlay ───────────────── -->
+<div id="editBatchStockModalOverlay" style="
+    display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55);
+    z-index: 2500; align-items: center; justify-content: center; backdrop-filter: blur(2px);"
+    onclick="if(event.target===this)closeEditBatchStockModal()">
+    <div style="background: var(--card-bg); border-radius: 16px; padding: 24px 26px;
+                width: 100%; max-width: 460px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+                border: 1px solid var(--border); margin: 16px; box-sizing: border-box;"
+         onclick="event.stopPropagation()">
+        
+        <!-- Header: Batch ID as Title (Identical to Batch Details Layout) -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <div style="display: flex; align-items: baseline; gap: 8px;">
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted);">Batch</span>
+                <h3 id="edit_batch_modal_title" style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text); letter-spacing: -0.2px;">BAT-000</h3>
+            </div>
+            <button type="button" onclick="closeEditBatchStockModal()" style="border: none; background: none; font-size: 18px; color: var(--text-secondary); cursor: pointer; padding: 4px 6px;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Primary Product Overview Card (Matching Batch Details Hero Layout) -->
+        <div style="background: var(--bg-soft); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 15.5px; font-weight: 800; color: var(--text); line-height: 1.25;" id="modal_batch_medicine_name">—</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="modal_batch_generic_name">—</div>
+                    <div style="margin-top: 8px;">
+                        <span id="modal_batch_category" style="display: inline-block; font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-secondary);">—</span>
+                    </div>
+                </div>
+                <div style="text-align: right; flex-shrink: 0;">
+                    <div id="modal_batch_current_stock_display" style="font-size: 17px; font-weight: 800; color: var(--text); line-height: 1.2;">0 units</div>
+                    <span style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-top: 2px;">In Stock</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Form -->
+        <form id="editBatchStockForm" method="POST" action="" onsubmit="return validateBatchStockForm();">
+            <!-- Dates: 1 Row, 2 Columns (Side by Side) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                <!-- Manufactured Date -->
+                <div>
+                    <label style="font-size: 11.5px; font-weight: 700; color: var(--text); display: block; margin-bottom: 4px;">
+                        <span>Manufactured Date <span style="color: #dc2626;">*</span></span>
+                    </label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="date" name="mfg_date" id="modal_batch_mfg_date" required
+                            style="width: 100%; border: 1.5px solid var(--border); border-radius: 9px; padding: 8px 32px 8px 10px; font-size: 12.5px; background: var(--card-bg); color: var(--text); font-family: inherit; box-sizing: border-box; cursor: pointer;"
+                            onclick="if(this.showPicker) this.showPicker();"
+                            onchange="onMfgDateChange()">
+                        <button type="button" onclick="const inp=document.getElementById('modal_batch_mfg_date'); if(inp.showPicker) inp.showPicker(); else inp.focus();"
+                            style="position: absolute; right: 6px; background: none; border: none; color: #d97706; cursor: pointer; padding: 2px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
+                            <i class="fa-solid fa-calendar-days" style="font-size: 14px;"></i>
+                        </button>
+                    </div>
+                    <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">Cannot be in future</div>
+                </div>
+
+                <!-- Expiry Date -->
+                <div>
+                    <label style="font-size: 11.5px; font-weight: 700; color: var(--text); display: block; margin-bottom: 4px;">
+                        <span>Expiry Date <span style="color: #dc2626;">*</span></span>
+                    </label>
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <input type="date" name="expiry_date" id="modal_batch_expiry_date" required
+                            style="width: 100%; border: 1.5px solid var(--border); border-radius: 9px; padding: 8px 32px 8px 10px; font-size: 12.5px; background: var(--card-bg); color: var(--text); font-family: inherit; box-sizing: border-box; cursor: pointer;"
+                            onclick="if(this.showPicker) this.showPicker();">
+                        <button type="button" onclick="const inp=document.getElementById('modal_batch_expiry_date'); if(inp.showPicker) inp.showPicker(); else inp.focus();"
+                            style="position: absolute; right: 6px; background: none; border: none; color: #d97706; cursor: pointer; padding: 2px; display: flex; align-items: center; justify-content: center; border-radius: 4px;">
+                            <i class="fa-solid fa-calendar-days" style="font-size: 14px;"></i>
+                        </button>
+                    </div>
+                    <div style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px;">Must be after Mfg. date</div>
+                </div>
+            </div>
+
+            <!-- Current Stock (Batch Qty) -->
+            <div style="margin-bottom: 14px;">
+                <label style="font-size: 12px; font-weight: 700; color: var(--text); display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                    <span>Batch Quantity</span>
+                    <span style="font-size: 10.5px; font-weight: normal; color: var(--text-secondary);">Current stock</span>
+                </label>
+                <input type="number" name="current_qty" id="modal_batch_qty_input" min="0" step="1"
+                    style="width: 100%; border: 1.5px solid var(--border); border-radius: 9px; padding: 8px 12px; font-size: 13px; background: var(--card-bg); color: var(--text); font-family: inherit; box-sizing: border-box;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">Adjust batch stock units if needed (syncs inventory count).</div>
+            </div>
+
+            <!-- Packaging Unit & Conversion Equivalent -->
+            <div style="background: var(--bg-soft); border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 18px;">
+                <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-boxes-packing" style="color: #059669;"></i> Packaging & Conversion Equivalent
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: flex-end;">
+                    <div>
+                        <label style="font-size: 11.5px; font-weight: 700; color: var(--text); display: block; margin-bottom: 4px;">Packaging Unit</label>
+                        <select name="packaging_unit" id="modal_batch_pkg_unit" onchange="updateBatchConversionPreview()"
+                            style="width: 100%; border: 1.5px solid var(--border); border-radius: 9px; padding: 8px 10px; font-size: 12.5px; background: var(--card-bg); color: var(--text); font-family: inherit;">
+                            <option value="Box">Box</option>
+                            <option value="Pack">Pack</option>
+                            <option value="Bottle">Bottle</option>
+                            <option value="Roll">Roll</option>
+                            <option value="Tube">Tube</option>
+                            <option value="Sachet">Sachet</option>
+                            <option value="Piece">Piece</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-size: 11.5px; font-weight: 700; color: var(--text); display: block; margin-bottom: 4px;">Units per Package</label>
+                        <input type="number" name="conversion_qty" id="modal_batch_conv_qty" min="1" step="1" value="1" oninput="updateBatchConversionPreview()"
+                            style="width: 100%; border: 1.5px solid var(--border); border-radius: 9px; padding: 8px 10px; font-size: 12.5px; background: var(--card-bg); color: var(--text); font-family: inherit;">
+                    </div>
+                </div>
+                <div id="modal_batch_conversion_preview" style="margin-top: 8px; font-size: 11.5px; font-weight: 600; color: #059669; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-calculator"></i> <span>Conversion: 1 Box = 100 Tablets</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 14px;">
+                <button type="button" onclick="closeEditBatchStockModal()" class="btn-action-outline" style="padding: 8px 18px; border-radius: 8px; font-size: 12.5px;">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-primary" style="padding: 8px 20px; border-radius: 8px; font-size: 12.5px; background: #d97706; border-color: #d97706; display: inline-flex; align-items: center; gap: 7px;">
+                    <i class="fa-solid fa-check"></i> Save Batch Stock
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── View Batch Modal Overlay ───────────────── -->
+<div id="viewBatchModalOverlay" style="
+    display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55);
+    z-index: 2500; align-items: center; justify-content: center; backdrop-filter: blur(2px);"
+    onclick="if(event.target===this)closeViewBatchModal()">
+    <div style="background: var(--card-bg); border-radius: 16px; padding: 22px 24px;
+                width: 100%; max-width: 460px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+                border: 1px solid var(--border); margin: 16px; box-sizing: border-box;"
+         onclick="event.stopPropagation()">
+        
+        <!-- Header: Batch ID as Title -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <div style="display: flex; align-items: baseline; gap: 8px;">
+                <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted);">Batch</span>
+                <h3 id="view_batch_modal_title" style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text); letter-spacing: -0.2px;">BAT-000</h3>
+            </div>
+            <button type="button" onclick="closeViewBatchModal()" style="border: none; background: none; font-size: 18px; color: var(--text-secondary); cursor: pointer; padding: 4px 6px;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- Primary Product Overview Card (Hero) -->
+        <div style="background: var(--bg-soft); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; border: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                <!-- Product Information -->
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-size: 15.5px; font-weight: 800; color: var(--text); line-height: 1.25;" id="view_batch_medicine_name">—</div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="view_batch_generic_name">—</div>
+                    <div style="margin-top: 8px;">
+                        <span id="view_batch_category" style="display: inline-block; font-size: 10.5px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-secondary);">—</span>
+                    </div>
+                </div>
+
+                <!-- Stock Level Indicator -->
+                <div style="text-align: right; flex-shrink: 0;">
+                    <span id="view_batch_stock_badge" class="status-badge status-good" style="margin-bottom: 4px; display: inline-block;">Good Stock</span>
+                    <div id="view_batch_current_stock" style="font-size: 17px; font-weight: 800; color: var(--text); line-height: 1.2;">0 units</div>
+                    <span style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); display: block; margin-top: 2px;">In Stock</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Structured Details Grid (Secondary Hierarchy) -->
+        <div style="background: var(--card-bg); border-radius: 12px; border: 1px solid var(--border); padding: 12px 14px; margin-bottom: 16px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px;">
+                <!-- Packaging Unit -->
+                <div>
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); display: block; margin-bottom: 3px;">Packaging Unit</span>
+                    <span id="view_batch_packaging_unit" style="font-size: 12.5px; font-weight: 600; color: var(--text); display: block;">—</span>
+                </div>
+
+                <!-- Quantity per Package -->
+                <div>
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); display: block; margin-bottom: 3px;">Quantity per Package</span>
+                    <span id="view_batch_conversion_qty" style="font-size: 12.5px; font-weight: 700; color: #059669; display: block;">—</span>
+                </div>
+
+                <!-- Supplier -->
+                <div style="border-top: 1px solid rgba(0,0,0,0.06); padding-top: 10px;">
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); display: block; margin-bottom: 3px;">Supplier</span>
+                    <span id="view_batch_supplier" style="font-size: 12.5px; font-weight: 600; color: var(--text); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="">—</span>
+                </div>
+
+                <!-- Date Received -->
+                <div style="border-top: 1px solid rgba(0,0,0,0.06); padding-top: 10px;">
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); display: block; margin-bottom: 3px;">Date Received</span>
+                    <div id="view_batch_received_date_text" style="font-size: 12.5px; font-weight: 600; color: var(--text);">—</div>
+                </div>
+
+                <!-- Manufactured Date -->
+                <div style="border-top: 1px solid rgba(0,0,0,0.06); padding-top: 10px;">
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); display: block; margin-bottom: 3px;">Manufactured Date</span>
+                    <div id="view_batch_mfg_date" style="font-size: 12.5px; font-weight: 600; color: var(--text);">—</div>
+                </div>
+
+                <!-- Expiry Date -->
+                <div style="border-top: 1px solid rgba(0,0,0,0.06); padding-top: 10px;">
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); display: block; margin-bottom: 3px;">Expiry Date</span>
+                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;">
+                        <span id="view_batch_expiry_date" style="font-size: 12.5px; font-weight: 600; color: var(--text);">—</span>
+                        <span id="view_batch_expiry_badge" class="status-badge status-good" style="font-size: 10px; padding: 1px 6px;">Good</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="display: flex; justify-content: flex-end; border-top: 1px solid var(--border); padding-top: 14px;">
+            <button type="button" onclick="closeViewBatchModal()" class="btn-primary" style="padding: 8px 24px; border-radius: 8px; font-size: 12.5px; cursor: pointer;">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Actual Count (Physical Shelf Audit) Modal Overlay ── -->
+<div id="actualCountModalOverlay" style="
+    display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55);
+    z-index: 2500; align-items: center; justify-content: center; backdrop-filter: blur(2px);"
+    onclick="if(event.target===this)closeActualCountModal()">
+    <div style="background: var(--card-bg); border-radius: 16px; padding: 24px 26px;
+                width: 100%; max-width: 520px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+                border: 1px solid var(--border); margin: 16px; box-sizing: border-box;"
+         onclick="event.stopPropagation()">
+        
+        <!-- Header -->
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <div>
+                <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text);">Physical Shelf Count</h3>
+                <div style="margin-top: 3px;">
+                    <span id="modal_count_batch_badge" style="font-size: 12px; font-weight: 700; color: #000; display: inline-block;">BAT-000</span>
+                </div>
+            </div>
+            <button type="button" onclick="closeActualCountModal()" style="border: none; background: none; font-size: 18px; color: var(--text-secondary); cursor: pointer; padding: 4px 6px;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <form id="actualCountForm" method="POST" action="">
+            <div style="padding: 0;">
+                <!-- Product & Batch Header Card -->
+                <div style="background: var(--bg-soft); border-radius: 12px; padding: 12px 16px; margin-bottom: 14px; border: 1px solid var(--border);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 15px; font-weight: 800; color: var(--text); line-height: 1.25;" id="modal_count_medicine_name">—</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;" id="modal_count_generic_name">—</div>
+                            <div style="margin-top: 6px; display: flex; gap: 6px; align-items: center;">
+                                <span id="modal_count_category_badge" style="font-size: 11px; font-weight: 600; color: var(--text-secondary); background: var(--card-bg); border: 1px solid var(--border); padding: 2px 7px; border-radius: 5px;">Category</span>
+                            </div>
+                        </div>
+                        <div style="text-align: right; flex-shrink: 0;">
+                            <div id="modal_count_system_qty_display" style="font-size: 16px; font-weight: 800; color: var(--text);">0 units</div>
+                            <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block; margin-top: 2px;">System Stock</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Existing Pending Count Alert (if any) -->
+                <div id="modal_count_pending_alert" style="display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; font-size: 12px; color: #92400e; line-height: 1.4;">
+                    <i class="fa-solid fa-clock" style="color: #d97706; margin-right: 4px;"></i>
+                    <span id="modal_count_pending_alert_text">A physical count is already pending verification.</span>
+                </div>
+
+                <!-- Actual Count & Reason Side by Side -->
+                <div style="display: grid; grid-template-columns: 180px 1fr; gap: 14px; align-items: flex-start; margin-bottom: 14px;">
+                    <!-- Actual Count Input -->
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: var(--text); display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                            <span>Actual Count <span style="color: #dc2626;">*</span></span>
+                            <span id="modal_count_unit_label" style="font-size: 11px; font-weight: 600; color: var(--text-muted);">(Units)</span>
+                        </label>
+                        <input type="number" id="actual_count_input" name="actual_qty" min="0" max="25000" class="form-control"
+                            placeholder="0" required style="width: 100%; font-size: 15px; font-weight: 700; padding: 8px 12px; box-sizing: border-box;"
+                            oninput="updateCountVariancePreview()">
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">
+                            Count on shelves.
+                        </div>
+                    </div>
+
+                    <!-- Reason / Discrepancy Remarks -->
+                    <div>
+                        <label style="font-size: 12px; font-weight: 700; color: var(--text); display: block; margin-bottom: 5px;">
+                            Reason / Audit Remarks <span style="font-size: 11px; font-weight: normal; color: var(--text-muted);">(Optional)</span>
+                        </label>
+                        <textarea name="reason" id="actual_count_reason" rows="2" class="form-control"
+                            placeholder="e.g. Discrepancy, damaged items removed..."
+                            style="resize: none; font-size: 12.5px; height: 58px; width: 100%; box-sizing: border-box;"></textarea>
+                    </div>
+                </div>
+
+                <!-- Live Variance / Discrepancy Preview -->
+                <div id="actual_count_variance_preview" style="margin-bottom: 14px; display: none;">
+                </div>
+
+            </div>
+
+            <div style="border-top: 1px solid var(--border); padding-top: 14px; margin-top: 10px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button type="button" class="modal-btn-cancel" onclick="closeActualCountModal()">Cancel</button>
+                <button type="submit" class="modal-btn-save" style="background: #0d9488; border-color: #0d9488;">
+                    Submit Count
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ── Superadmin Physical Count Reviews Modal Overlay ── -->
+{% if is_superadmin %}
+<div id="auditReviewsModalOverlay" style="
+    display: none; position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55);
+    z-index: 2500; align-items: center; justify-content: center; backdrop-filter: blur(2px);"
+    onclick="if(event.target===this)closeAuditReviewsModal()">
+    <div style="background: var(--card-bg); border-radius: 16px; padding: 24px 26px;
+                width: 100%; max-width: 680px; max-height: 85vh; display: flex; flex-direction: column;
+                box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25); border: 1px solid var(--border); margin: 16px; box-sizing: border-box;"
+         onclick="event.stopPropagation()">
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; border-bottom: 1px solid var(--border); padding-bottom: 12px; flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <h3 style="margin: 0; font-size: 18px; font-weight: 800; color: var(--text);">Physical Count Approval</h3>
+            </div>
+            <button type="button" onclick="closeAuditReviewsModal()" style="border: none; background: none; font-size: 18px; color: var(--text-secondary); cursor: pointer; padding: 4px 6px;">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <div style="overflow-y: auto; max-height: calc(85vh - 150px); padding-right: 4px;">
+            {% if pending_audits | length == 0 %}
+            <div style="text-align: center; padding: 40px 16px; color: #94a3b8;">
+                <i class="fa-solid fa-clipboard-check" style="font-size: 40px; margin-bottom: 12px; color: #cbd5e1;"></i>
+                <div style="font-size: 15px; font-weight: 700; color: var(--text);">No Pending Count Approvals</div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">All physical shelf counts are verified or match current system records.</div>
+            </div>
+            {% else %}
+            {% for a in pending_audits %}
+            <div style="background: #f8fafc; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px dashed #e2e8f0;">
+                    <div>
+                        <span style="font-size: 12px; font-weight: 700; color: #000000;">Batch {{ a.batch_id }}</span>
+                        <strong style="font-size: 14.5px; color: var(--text); margin-left: 6px;">{{ a.medicine_name }}</strong>
+                        {% if a.generic %}<span style="font-size: 12px; color: var(--text-secondary); margin-left: 4px;">({{ a.generic }})</span>{% endif %}
+                    </div>
+                    <span style="font-size: 11.5px; color: var(--text-muted); text-align: right;">
+                        Reported by <strong style="color: var(--text);">{{ a.submitted_by }}</strong> ({{ a.submitted_by_role }})<br>
+                        <span style="font-size: 10.5px;">{{ a.submitted_at }}</span>
+                    </span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 10px; margin-bottom: 10px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px;">
+                    <div>
+                        <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block;">System Qty</span>
+                        <div style="font-size: 15px; font-weight: 800; color: var(--text); margin-top: 2px;">
+                            {{ "{:,}".format(a.live_batch_qty) }} {{ a.base_unit }}{% if a.live_batch_qty > 1 and not a.base_unit.endswith('s') %}s{% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block;">Counted Actual</span>
+                        <div style="font-size: 15px; font-weight: 800; color: var(--text); margin-top: 2px;">
+                            {{ "{:,}".format(a.actual_qty) }} {{ a.base_unit }}{% if a.actual_qty > 1 and not a.base_unit.endswith('s') %}s{% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <span style="font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); display: block;">Discrepancy</span>
+                        <div style="font-size: 15px; font-weight: 800; margin-top: 2px; color: {% if a.discrepancy > 0 %}#059669{% else %}#dc2626{% endif %};">
+                            {{ "{:,}".format(a.discrepancy) }} {{ a.base_unit }}{% if a.discrepancy != 1 and not a.base_unit.endswith('s') %}s{% endif %}
+                            <span style="font-size: 11px; font-weight: 600;">({% if a.discrepancy > 0 %}Found{% else %}Missing{% endif %})</span>
+                        </div>
+                    </div>
+                </div>
+
+                {% if a.reason %}
+                <div style="font-size: 12px; color: #475569; background: #f1f5f9; border-radius: 6px; padding: 7px 12px; margin-bottom: 12px;">
+                    <i class="fa-solid fa-comment-dots" style="color: #64748b; margin-right: 4px;"></i><strong>Notes:</strong> {{ a.reason }}
+                </div>
+                {% endif %}
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; align-items: center;">
+                    <!-- Deny Form: Deny means the current stock quantity in the system is already correct -->
+                    <form method="POST" action="{{ url_for('deny_batch_actual_count', audit_id=a.id) }}" onsubmit="return confirm('Deny this count adjustment? The current system stock of {{ a.live_batch_qty }} {{ a.base_unit }}s will be confirmed as correct.');" style="margin: 0;">
+                        <button type="submit" class="btn-action-outline" style="color: #dc2626; border-color: #fca5a5; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;" title="Deny adjustment and confirm current system quantity is correct">
+                            <i class="fa-solid fa-xmark"></i> Deny (Keep System Qty)
+                        </button>
+                    </form>
+
+                    <!-- Approve Form: Update batch and inventory stock -->
+                    <form method="POST" action="{{ url_for('approve_batch_actual_count', audit_id=a.id) }}" onsubmit="return confirm('Approve this count adjustment? Batch {{ a.batch_id }} quantity will be updated to {{ a.actual_qty }} {{ a.base_unit }}s.');" style="margin: 0;">
+                        <button type="submit" class="btn-primary" style="background: #10b981; border-color: #10b981; font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fa-solid fa-check"></i> Approve
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+
+        <div style="border-top: 1px solid var(--border); padding-top: 12px; margin-top: 10px; display: flex; justify-content: flex-end; flex-shrink: 0;">
+            <button type="button" class="btn-primary" onclick="closeAuditReviewsModal()" style="padding: 7px 20px; border-radius: 8px; font-size: 12.5px;">Close</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

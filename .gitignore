@@ -1,0 +1,26 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local Windows build artifacts & desktop installers (Desktop only)
+build/
+dist/
+*.spec
+*.iss
+*.vbs
+ngrok.exe
+
+# Database backups & unused test files
+backups/
+*.bak
+database.db
+pharmacy.db
+test_template.pdf
+
+# Local IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

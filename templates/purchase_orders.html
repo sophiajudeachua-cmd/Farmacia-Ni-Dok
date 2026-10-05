@@ -1,0 +1,3384 @@
+{% extends 'base.html' %}
+{% block title %}Purchase Orders{% endblock %}
+
+{% block content %}
+<style>
+    #po-cal-filter .cal-pill-btn {
+        border: none !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        padding: 0 4px !important;
+        border-radius: 0 !important;
+    }
+    #po-cal-filter .cal-pill-btn:hover {
+        background: transparent !important;
+        color: var(--accent, #c0392b) !important;
+    }
+    #po-cal-filter .cal-pill-btn.has-value {
+        background: transparent !important;
+        color: var(--accent, #c0392b) !important;
+    }
+    #filter-supplier {
+        max-width: 130px !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+    /* Searchable Select Component (Direct Typing in Main Dropdown) */
+    .searchable-select {
+        position: relative;
+        width: 100%;
+        user-select: none;
+        font-family: inherit;
+        box-sizing: border-box;
+    }
+    .searchable-select-trigger {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        min-height: 38px;
+        height: 38px;
+        padding: 0 10px 0 12px;
+        background: var(--surface, #ffffff);
+        border: 1.5px solid var(--border, #cbd5e1);
+        border-radius: var(--radius-md, 8px);
+        cursor: text;
+        transition: all 0.18s ease;
+        box-sizing: border-box;
+        box-shadow: none !important;
+        -webkit-box-shadow: none !important;
+    }
+    .searchable-select-trigger:hover {
+        border-color: #94a3b8;
+    }
+    .searchable-select-trigger:focus-within,
+    .searchable-select.is-open .searchable-select-trigger {
+        border-color: var(--accent, #c0392b);
+        background: #ffffff;
+        box-shadow: none !important;
+        -webkit-box-shadow: none !important;
+        outline: none !important;
+    }
+    .searchable-select.is-disabled .searchable-select-trigger {
+        background: #f1f5f9;
+        border-color: #e2e8f0;
+        cursor: not-allowed;
+        opacity: 0.75;
+    }
+    .searchable-select-input {
+        flex: 1;
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        -webkit-box-shadow: none !important;
+        background: transparent !important;
+        font-size: 13px;
+        color: var(--text, #1e293b);
+        font-family: inherit;
+        padding: 0;
+        height: 100%;
+        cursor: text;
+        min-width: 0;
+    }
+    .searchable-select-input::placeholder {
+        color: #94a3b8;
+    }
+    .searchable-select-input::selection {
+        background: transparent;
+        color: inherit;
+    }
+    .searchable-select.is-disabled .searchable-select-input {
+        cursor: not-allowed;
+    }
+    .searchable-select-arrow {
+        font-size: 10.5px;
+        color: #64748b;
+        transition: transform 0.2s ease;
+        flex-shrink: 0;
+        cursor: pointer;
+        padding: 8px 4px;
+        margin-left: 6px;
+    }
+    .searchable-select.is-open .searchable-select-arrow {
+        transform: rotate(180deg);
+    }
+    .searchable-select-dropdown {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 8px;
+        box-shadow: none !important;
+        -webkit-box-shadow: none !important;
+        z-index: 2000;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        max-height: 220px;
+        animation: searchableFadeIn 0.14s ease-out;
+    }
+    @keyframes searchableFadeIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .searchable-select-options {
+        overflow-y: auto;
+        max-height: 220px;
+        padding: 4px;
+    }
+    .searchable-select-option {
+        padding: 7px 10px;
+        font-size: 13px;
+        color: #334155;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background 0.12s ease;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .searchable-select-option:hover,
+    .searchable-select-option.is-focused {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+    .searchable-select-option.is-selected {
+        background: #fee2e2;
+        color: var(--accent, #c0392b);
+        font-weight: 600;
+    }
+    .searchable-select-no-results {
+        padding: 12px 10px;
+        text-align: center;
+        font-size: 12px;
+        color: #94a3b8;
+        font-style: italic;
+    }
+    #create-po-modal .modal-content,
+    #edit-po-modal .modal-content {
+        max-width: 820px !important;
+        overflow: visible !important;
+    }
+    .po-grid-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 16px;
+    }
+    .po-items-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted, #64748b);
+    }
+    .po-item-row {
+        background: #f8fafc;
+        border: 1.5px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 12px 14px;
+        margin-bottom: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        box-sizing: border-box;
+        transition: all 0.2s ease;
+    }
+    .po-item-row:hover {
+        border-color: #cbd5e1;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .po-row-tier1 {
+        display: grid;
+        grid-template-columns: 2fr 3fr;
+        gap: 12px;
+        align-items: flex-start;
+        width: 100%;
+    }
+    .po-field-col {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        width: 100%;
+    }
+    .po-col-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-muted, #64748b);
+        margin: 0;
+        text-align: left;
+    }
+    .po-row-tier2 {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 9px 12px;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .po-tier2-fields {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+    .po-tier2-total-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        width: 100%;
+        margin-top: 4px;
+    }
+    .po-field-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .po-field-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        white-space: nowrap;
+    }
+    .po-calc-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 10px;
+        border-radius: 9999px;
+        background: #ecfdf5;
+        border: 1px solid #a7f3d0;
+        color: #065f46;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+        line-height: 1.2;
+    }
+    .po-base-unit-tag {
+        font-size: 11.5px;
+        font-weight: 600;
+        color: #475569;
+        background: #f1f5f9;
+        padding: 3px 8px;
+        border-radius: 6px;
+        white-space: nowrap;
+    }
+    /* btn-action-outline uses global CSS */
+    .btn-remove {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: 1.5px solid rgba(220,38,38,0.28);
+        padding: 4px 14px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 600;
+        color: #dc2626;
+        cursor: pointer;
+        font-family: inherit;
+        transition: all 0.16s;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+    .btn-remove:hover {
+        background: rgba(220,38,38,0.07);
+        border-color: #dc2626;
+    }
+    .btn-pill {
+        background: transparent;
+        border: 1px solid var(--border-light);
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        color: var(--text-gray);
+        cursor: pointer;
+        transition: all 0.2s;
+        text-decoration: none;
+    }
+    .btn-pill:hover {
+        background: #f1f5f9;
+    }
+    .filter-tabs {
+        display: flex;
+        gap: 8px;
+    }
+    .filter-btn {
+        padding: 6px 18px;
+        border: 1.5px solid var(--border);
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+        background: transparent;
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .filter-btn:hover {
+        background: var(--bg-soft);
+        border-color: var(--border-strong);
+    }
+    .filter-btn.active {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+    }
+    .status-for-receiving { background: #dcfce7; color: #15803d; }
+    .status-received { background: #dcfce7; color: #15803d; }
+    .status-for-replacement { background: #fef3c7; color: #b45309; }
+    .status-partial { background: #fee2e2; color: #b91c1c; }
+    .empty-state {
+        text-align: center;
+        padding: 30px;
+        color: var(--text-gray);
+        font-size: 14px;
+    }
+
+    /* Purchase Orders Table Layout & Hierarchy */
+    .po-table {
+        width: 100%;
+        table-layout: fixed;
+        border-collapse: collapse;
+    }
+    .po-table th,
+    .po-table td {
+        vertical-align: middle;
+        box-sizing: border-box;
+    }
+
+    /* Truncatable / Expandable Supplier Tag */
+    .supplier-expand-cell {
+        position: relative;
+        overflow: visible !important;
+    }
+    .supplier-pill-text {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        max-width: 105px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: middle;
+        cursor: pointer;
+        padding: 3px 6px;
+        border-radius: 6px;
+        color: #1e293b;
+        font-weight: 500;
+        transition: all 0.15s ease;
+    }
+    .supplier-pill-text:hover {
+        background: #f1f5f9;
+        color: #0f172a;
+    }
+    .supplier-pill-text.has-more {
+        border-bottom: 1px dashed #94a3b8;
+    }
+    .supplier-full-popover {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 10px;
+        transform: translateY(-50%);
+        z-index: 100;
+        background: #ffffff;
+        color: #0f172a;
+        padding: 6px 14px;
+        border-radius: 8px;
+        border: 1px solid #e2e8f0;
+        font-size: 12.5px;
+        font-weight: 600;
+        white-space: nowrap;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.06);
+        cursor: pointer;
+        align-items: center;
+        animation: popoverFadeIn 0.15s ease;
+    }
+    .supplier-full-popover:hover {
+        background: #f8fafc;
+    }
+    .supplier-full-popover.active {
+        display: inline-flex;
+    }
+    @keyframes popoverFadeIn {
+        from { opacity: 0; transform: translateY(-46%); }
+        to { opacity: 1; transform: translateY(-50%); }
+    }
+</style>
+
+<!-- Create Purchase Order Details Modal -->
+{% if has_permission('po_create') %}
+<div id="create-po-modal" class="modal-overlay" onclick="closePOModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 720px; padding: 24px; overflow: visible;">
+        <button class="modal-close" onclick="closePOModal()">&times;</button>
+        <div class="modal-header" style="padding: 0 0 16px 0;">
+            <h3>Create Purchase Order</h3>
+            <p>Select a supplier and add the items to order.</p>
+        </div>
+        <form id="create-po-form" action="{{ url_for('purchase_orders') }}" method="POST">
+            <div class="modal-body" style="padding: 16px 0 0 0;">
+                <div class="po-grid-row">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Supplier</label>
+                        <select class="form-control" name="supplier_id" id="create-po-supplier" onchange="onSupplierChange(this.value)" required>
+                            <option value="">-- Select Supplier --</option>
+                            {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div id="create-supplier-hint" style="font-size: 11.5px; color: #10b981; font-weight: 500; margin-top: 5px; display: none;"></div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Notes / remarks</label>
+                        <input type="text" class="form-control" name="notes" placeholder="Enter notes or remarks here" maxlength="25">
+                    </div>
+                </div>
+
+                <div id="items-container" style="margin-top: 14px; margin-bottom: 6px;">
+                    <!-- Dynamic supplier-filtered item rows will be injected here -->
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+                    <button type="button" class="btn-action-outline" onclick="addItemRow()">+ Add Item</button>
+                    <div style="display: flex; gap: 12px;">
+                        <button type="button" class="modal-btn-cancel" onclick="closePOModal()">Cancel</button>
+                        <button type="submit" class="modal-btn-save">Save PO Record</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Purchase Orders Records -->
+<div class="panel">
+    <div class="panel-header" style="display: flex; flex-direction: column; gap: 16px; align-items: stretch;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">
+                {% if session.get('role') == 'Staff' %}
+                    Purchase Orders / Receiving
+                {% else %}
+                    Purchase Orders Records
+                {% endif %}
+            </h3>
+            <span class="list-count-badge">
+                {{ orders | length }} record(s)
+            </span>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; width: 100%; flex-wrap: nowrap;">
+            <div class="filter-tabs" style="flex-shrink: 0;">
+                <input type="hidden" id="filter-status-val" value="all">
+                <button class="filter-btn active" onclick="setStatusFilter('all', this)">All</button>
+                <button class="filter-btn" onclick="setStatusFilter('For Receiving', this)">For Receiving</button>
+                <button class="filter-btn" onclick="setStatusFilter('Received', this)">Received</button>
+                <button class="filter-btn" onclick="setStatusFilter('For Replacement', this)">For Replacement</button>
+            </div>
+
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: nowrap; flex-shrink: 0;">
+                <div class="filter-container">
+                    <i class="fa-solid fa-filter"></i>
+                    <select id="filter-supplier" class="filter-select" onchange="filterPO()" style="max-width: 130px; text-overflow: ellipsis; white-space: nowrap;">
+                        <option value="">All Suppliers</option>
+                        {% for supplier in suppliers %}
+                            <option value="{{ supplier.name | lower }}">{{ supplier.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="cal-filter-wrapper" id="po-cal-filter"></div>
+                </div>
+                {% if has_permission('po_create') %}
+                    <button class="btn-primary" style="width: auto; padding: 8px 20px; font-size: 13px; font-weight: 500; border-radius: 20px; white-space: nowrap; flex-shrink: 0;" onclick="openPOModal()">+ Create Purchase Order</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <table class="po-table">
+        <thead>
+            <tr>
+                <th style="width: 10%; white-space: nowrap;">Order ID</th>
+                <th style="width: 15%; white-space: nowrap;">Supplier</th>
+                <th style="width: 19%; white-space: nowrap;">Product</th>
+                <th style="width: 12%; white-space: nowrap;">Prepared By</th>
+                <th style="width: 11%; white-space: nowrap;">Order Date</th>
+                <th style="width: 11%; text-align: center; white-space: nowrap;">Status</th>
+                <th style="width: 8%; text-align: center; white-space: nowrap;">Quantity</th>
+                <th style="width: 14%; text-align: center; white-space: nowrap;">Action</th>
+            </tr>
+        </thead>
+        <tbody id="po-table-body">
+            {% for order in orders %}
+            <tr class="po-row" data-id="{{ order.id | lower }}" data-status="{{ order.status }}" data-supplier="{{ order.supplier | lower }}" data-products="{{ order.products_list | lower }}" data-prepared="{{ order.prepared_by | lower }}" data-date="{{ order.order_date }}">
+                <td style="white-space: nowrap; font-weight: 700; color: #1e293b;">{{ order.id }}</td>
+                <td class="supplier-expand-cell">
+                    <span class="supplier-pill-text {% if order.supplier | length > 12 %}has-more{% endif %}" 
+                          title="Click to reveal full name" 
+                          onclick="toggleSupplierName(this, event)">
+                        {{ order.supplier[:12] ~ ('...' if order.supplier | length > 12 else '') }}
+                    </span>
+                    {% if order.supplier | length > 12 %}
+                    <div class="supplier-full-popover" onclick="closeSupplierPopover(event)">
+                        <span>{{ order.supplier }}</span>
+                    </div>
+                    {% endif %}
+                </td>
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ order.products_list }}">{{ order.products_list }}</td>
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ order.prepared_by }}">{{ order.prepared_by }}</td>
+                <td style="white-space: nowrap;">{{ order.order_date }}</td>
+                <td style="text-align: center; white-space: nowrap;">
+                    <span class="status-badge 
+                        {% if order.status == 'For Receiving' %}status-for-receiving
+                        {% elif order.status == 'Received' %}status-received
+                        {% elif order.status == 'For Replacement' %}status-for-replacement
+                        {% else %}status-partial{% endif %}">
+                        {{ order.status }}
+                    </span>
+                </td>
+                <td style="text-align: center; white-space: nowrap;">
+                    <div style="font-weight: 600;">
+                        {{ order.total_quantity }} {{ order.packaging_unit or 'Box' }}{% if order.total_quantity > 1 and not (order.packaging_unit or '').endswith('s') %}{% if (order.packaging_unit or '').endswith('x') %}es{% else %}s{% endif %}{% endif %}
+                    </div>
+                    {% if (order.conversion_qty or 1) > 1 %}
+                    <div style="font-size: 11px; color: #059669; font-weight: 600; margin-top: 2px;">
+                        = {{ order.total_quantity * order.conversion_qty }} {{ order.base_unit or 'Piece' }}{% if (order.total_quantity * order.conversion_qty) > 1 and not (order.base_unit or '').endswith('s') %}s{% endif %}
+                    </div>
+                    {% endif %}
+                </td>
+                <td style="text-align: center; white-space: nowrap;">
+                    <button type="button" class="btn-action-outline btn-view"
+                        data-po-id="{{ order.id }}"
+                        data-supplier="{{ order.supplier | escape }}"
+                        data-order-date="{{ order.order_date }}"
+                        data-status="{{ order.status }}"
+                        data-prepared-by="{{ order.prepared_by | escape }}"
+                        data-notes="{{ order.notes | escape }}"
+                        data-received-by="{{ order.received_by | escape }}"
+                        data-supplier-id="{{ order.supplier_id }}"
+                        onclick="handleShowPODetails(this)">Details</button>
+                    {% if has_permission('po_receive') %}
+                        {% if order.status == 'For Receiving' %}
+                            <button type="button" class="btn-primary"
+                                style="padding:6px 16px;border-radius:20px;font-size:13px;width:auto;font-weight:500;"
+                                onclick="openExpiryModal('{{ order.id }}')">
+                                <i class="fa-solid fa-calendar-check" style="font-size:11px;"></i> Receive
+                            </button>
+                        {% elif order.status == 'For Replacement' %}
+                            <button type="button" class="btn-primary"
+                                style="padding:6px 16px;border-radius:20px;font-size:13px;width:auto;font-weight:500;background-color:#d97706;border-color:#d97706;"
+                                onclick="openExpiryModal('{{ order.id }}')">
+                                <i class="fa-solid fa-arrows-rotate" style="font-size:11px;"></i> Receive Replacement
+                            </button>
+                        {% else %}
+                            <button class="btn-primary" style="padding: 6px 16px; border-radius: 20px; font-size: 13px; width: auto; font-weight: 500; opacity: 0.5; cursor: not-allowed;" disabled>Receive</button>
+                        {% endif %}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // ─── Supplier Catalog Mapping & Stock Capacity Thresholds ─────
+    const supplierCatalog = {{ supplier_catalog | tojson }};
+    const medicinesStockInfo = {{ medicines_stock_info | tojson }};
+
+    function getSupplierCategories(supplierId) {
+        if (!supplierId || !supplierCatalog[supplierId]) return [];
+        return Object.keys(supplierCatalog[supplierId].categories || {}).sort();
+    }
+
+    function getSupplierCategoryProducts(supplierId, category) {
+        if (!supplierId || !category || !supplierCatalog[supplierId]) return [];
+        return (supplierCatalog[supplierId].categories[category] || []).slice().sort((a, b) => a.brand.localeCompare(b.brand));
+    }
+
+    function getSupplierTotalProductCount(supplierId) {
+        if (!supplierId || !supplierCatalog[supplierId]) return 0;
+        const cats = supplierCatalog[supplierId].categories || {};
+        return Object.values(cats).reduce((sum, list) => sum + list.length, 0);
+    }
+
+    const STANDARD_PACKAGING_UNITS = [
+        'Box', 'Pack', 'Bottle', 'Tube', 'Roll', 'Blister Pack', 'Strip', 'Vial', 'Sachet', 'Bag', 'Can', 'Piece', 'Pouch', 'Case'
+    ];
+
+    function createItemRowElement(supplierId, selectedCategory = '', selectedMedId = '', quantity = 1, currentPoQty = 0, selectedPkgUnit = '', selectedConvQty = null) {
+        const row = document.createElement('div');
+        row.className = 'po-item-row';
+
+        const categories = getSupplierCategories(supplierId);
+        const hasSupplier = Boolean(supplierId && supplierCatalog[supplierId]);
+
+        // ── Tier 1: Product Selection ──
+        const tier1 = document.createElement('div');
+        tier1.className = 'po-row-tier1';
+
+        // Category Select
+        const catCol = document.createElement('div');
+        catCol.className = 'po-field-col';
+        const catLabel = document.createElement('label');
+        catLabel.className = 'po-col-label';
+        catLabel.innerHTML = 'Category <span style="color: #dc2626;">*</span>';
+
+        const catSelect = document.createElement('select');
+        catSelect.className = 'form-control po-category-select';
+        catSelect.required = true;
+        catSelect.disabled = !hasSupplier;
+
+        if (!hasSupplier) {
+            catSelect.innerHTML = '<option value="">-- First Select Supplier --</option>';
+        } else if (categories.length === 0) {
+            catSelect.innerHTML = '<option value="">-- No Categories Registered --</option>';
+        } else {
+            let catOptions = `<option value="">-- Select Category (${categories.length}) --</option>`;
+            categories.forEach(cat => {
+                const isSel = (cat === selectedCategory) ? 'selected' : '';
+                catOptions += `<option value="${cat}" ${isSel}>${cat}</option>`;
+            });
+            catSelect.innerHTML = catOptions;
+        }
+        catCol.appendChild(catLabel);
+        catCol.appendChild(catSelect);
+
+        // Product Select
+        const prodCol = document.createElement('div');
+        prodCol.className = 'po-field-col';
+        const prodLabel = document.createElement('label');
+        prodLabel.className = 'po-col-label';
+        prodLabel.innerHTML = 'Product & Quantity <span style="color: #dc2626;">*</span>';
+
+        const prodSelect = document.createElement('select');
+        prodSelect.name = 'medicine[]';
+        prodSelect.className = 'form-control po-product-select';
+        prodSelect.style.width = '100%';
+        prodSelect.required = true;
+
+        prodCol.appendChild(prodLabel);
+        prodCol.appendChild(prodSelect);
+
+        tier1.appendChild(catCol);
+        tier1.appendChild(prodCol);
+
+        // ── Tier 2: Quantity, Packaging Unit & Base Units Inside ──
+        const tier2 = document.createElement('div');
+        tier2.className = 'po-row-tier2';
+
+        const tier2Fields = document.createElement('div');
+        tier2Fields.className = 'po-tier2-fields';
+
+        // 1. Packages Quantity Input
+        const pkgQtyGroup = document.createElement('div');
+        pkgQtyGroup.className = 'po-field-item';
+        const pkgQtyLabel = document.createElement('span');
+        pkgQtyLabel.className = 'po-field-label';
+        pkgQtyLabel.textContent = 'Ordered:';
+        const qtyInput = document.createElement('input');
+        qtyInput.type = 'number';
+        qtyInput.name = 'quantity[]';
+        qtyInput.className = 'form-control po-qty-input';
+        qtyInput.style.width = '75px';
+        qtyInput.style.height = '34px';
+        qtyInput.style.textAlign = 'center';
+        qtyInput.style.fontWeight = '600';
+        qtyInput.value = quantity;
+        qtyInput.min = '1';
+        qtyInput.max = '2500';
+        qtyInput.required = true;
+        pkgQtyGroup.appendChild(pkgQtyLabel);
+        pkgQtyGroup.appendChild(qtyInput);
+
+        // 2. Packaging Unit Dropdown
+        const pkgUnitGroup = document.createElement('div');
+        pkgUnitGroup.className = 'po-field-item';
+        const pkgUnitLabel = document.createElement('span');
+        pkgUnitLabel.className = 'po-field-label';
+        pkgUnitLabel.textContent = 'Unit:';
+        const pkgUnitSelect = document.createElement('select');
+        pkgUnitSelect.name = 'packaging_unit[]';
+        pkgUnitSelect.className = 'form-control po-pkg-select';
+        pkgUnitSelect.style.height = '34px';
+        pkgUnitSelect.style.minWidth = '95px';
+        pkgUnitSelect.style.padding = '0 8px';
+        pkgUnitSelect.style.fontSize = '12.5px';
+        pkgUnitGroup.appendChild(pkgUnitLabel);
+        pkgUnitGroup.appendChild(pkgUnitSelect);
+
+        // 3. Base Units Inside (Conversion) Input
+        const convGroup = document.createElement('div');
+        convGroup.className = 'po-field-item';
+        const convLabel = document.createElement('span');
+        convLabel.className = 'po-field-label';
+        convLabel.textContent = 'Contains:';
+        const convInput = document.createElement('input');
+        convInput.type = 'number';
+        convInput.name = 'conversion_qty[]';
+        convInput.className = 'form-control po-conv-input';
+        convInput.style.width = '70px';
+        convInput.style.height = '34px';
+        convInput.style.textAlign = 'center';
+        convInput.style.fontWeight = '600';
+        convInput.value = selectedConvQty !== null ? selectedConvQty : 1;
+        convInput.min = '1';
+        convInput.max = '10000';
+        convInput.required = true;
+        convGroup.appendChild(convLabel);
+        convGroup.appendChild(convInput);
+
+        // 4. Base Unit Tag (e.g. "Pieces / Pack")
+        const baseUnitTag = document.createElement('span');
+        baseUnitTag.className = 'po-base-unit-tag';
+        baseUnitTag.textContent = 'Pieces/Pkg';
+
+        tier2Fields.appendChild(pkgQtyGroup);
+        tier2Fields.appendChild(pkgUnitGroup);
+        tier2Fields.appendChild(convGroup);
+        tier2Fields.appendChild(baseUnitTag);
+
+        // 5. Total Base Quantity & Remove Button on the line of total
+        const tier2TotalRow = document.createElement('div');
+        tier2TotalRow.className = 'po-tier2-total-row';
+
+        const calcBadge = document.createElement('div');
+        calcBadge.className = 'po-calc-badge';
+        calcBadge.innerHTML = '<span>Total: <strong>1 Piece</strong></span>';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'btn-remove';
+        removeBtn.textContent = 'Remove';
+        removeBtn.onclick = function() { removeRow(this); };
+
+        tier2TotalRow.appendChild(calcBadge);
+        tier2TotalRow.appendChild(removeBtn);
+
+        tier2.appendChild(tier2Fields);
+        tier2.appendChild(tier2TotalRow);
+
+        // ── Tier 3: Threshold & Capacity Info Banner ──
+        const thresholdHint = document.createElement('div');
+        thresholdHint.className = 'po-threshold-hint';
+        thresholdHint.style.display = 'none';
+
+        function populatePackagingUnits(defaultUnit) {
+            const units = [...STANDARD_PACKAGING_UNITS];
+            if (defaultUnit && !units.includes(defaultUnit)) {
+                units.unshift(defaultUnit);
+            }
+            pkgUnitSelect.innerHTML = '';
+            units.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u;
+                opt.textContent = u;
+                if (u.toLowerCase() === (defaultUnit || 'box').toLowerCase()) {
+                    opt.selected = true;
+                }
+                pkgUnitSelect.appendChild(opt);
+            });
+        }
+
+        function updateThresholdDisplay() {
+            const medId = prodSelect.value;
+            if (!medId || !medicinesStockInfo[medId]) {
+                thresholdHint.style.display = 'none';
+                baseUnitTag.textContent = 'Units/Pkg';
+                calcBadge.innerHTML = '<span>Total: <strong>--</strong></span>';
+                qtyInput.disabled = false;
+                qtyInput.max = '2500';
+                qtyInput.setCustomValidity('');
+                return;
+            }
+            const med = medicinesStockInfo[medId];
+            const rop = med.reorder_point;
+            const currentStock = med.stock;
+            const baseUnit = med.base_unit || 'Piece';
+            const pkgUnit = pkgUnitSelect.value || med.packaging_unit || 'Box';
+            const conv = Math.max(1, parseInt(convInput.value, 10) || 1);
+            const orderPkgs = Math.max(0, parseInt(qtyInput.value, 10) || 0);
+            const totalBaseOrder = orderPkgs * conv;
+
+            // Pending deliveries
+            const pendingBase = med.pending_base_qty !== undefined ? med.pending_base_qty : ((med.pending_qty || 0) * (med.conversion_qty || 1));
+            const currentPoBase = (selectedMedId === medId) ? (currentPoQty * (selectedConvQty || med.conversion_qty || 1)) : 0;
+            const effPendingBase = Math.max(0, pendingBase - currentPoBase);
+            const maxOrderableBase = Math.max(0, rop - currentStock - effPendingBase);
+            const maxOrderablePkgs = Math.floor(maxOrderableBase / conv);
+
+            // Update base unit tag & total calculation badge
+            baseUnitTag.textContent = `${baseUnit}s per ${pkgUnit}`;
+            const totalBaseFormatted = totalBaseOrder.toLocaleString();
+            const baseUnitPlural = totalBaseOrder > 1 && !baseUnit.endsWith('s') ? 's' : '';
+            calcBadge.innerHTML = `Total: <strong>${totalBaseFormatted} ${baseUnit}${baseUnitPlural}</strong>`;
+
+            if (maxOrderableBase <= 0) {
+                qtyInput.value = 0;
+                qtyInput.max = 0;
+                qtyInput.disabled = true;
+                qtyInput.setCustomValidity("Storage capacity threshold reached. Additional orders are blocked to prevent overstocking.");
+                thresholdHint.style.display = 'flex';
+                thresholdHint.style.alignItems = 'center';
+                thresholdHint.style.gap = '6px';
+                thresholdHint.style.color = '#dc2626';
+                thresholdHint.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span><strong>Overstock Limit Reached:</strong> Stock is at capacity (${currentStock.toLocaleString()}/${rop.toLocaleString()} ${baseUnit}s${effPendingBase > 0 ? ', ' + effPendingBase.toLocaleString() + ' pending' : ''}). Max allowable order: <strong>0 ${pkgUnit}s</strong>.</span>`;
+            } else if (totalBaseOrder > maxOrderableBase) {
+                qtyInput.disabled = false;
+                qtyInput.max = maxOrderablePkgs;
+                qtyInput.setCustomValidity(`Maximum allowable order for ${conv} ${baseUnit}s/${pkgUnit} is ${maxOrderablePkgs} ${pkgUnit}(s) to prevent overstocking.`);
+                thresholdHint.style.display = 'flex';
+                thresholdHint.style.alignItems = 'center';
+                thresholdHint.style.gap = '6px';
+                thresholdHint.style.color = '#dc2626';
+                thresholdHint.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span><strong>Exceeds Storage Capacity:</strong> Ordering ${orderPkgs} ${pkgUnit}s (= ${totalBaseFormatted} ${baseUnit}s) exceeds available space (${maxOrderableBase.toLocaleString()} ${baseUnit}s). Max allowable is <strong>${maxOrderablePkgs} ${pkgUnit}(s)</strong>.</span>`;
+            } else {
+                qtyInput.disabled = false;
+                qtyInput.max = maxOrderablePkgs;
+                qtyInput.min = 1;
+                qtyInput.setCustomValidity("");
+                thresholdHint.style.display = 'flex';
+                thresholdHint.style.alignItems = 'center';
+                thresholdHint.style.justifyContent = 'space-between';
+                thresholdHint.style.color = '#475569';
+                thresholdHint.innerHTML = `<span><i class="fa-solid fa-boxes-stacked" style="color: #64748b;"></i> Storage Threshold: <strong>${rop.toLocaleString()} ${baseUnit}s</strong> · In-Stock: <strong>${currentStock.toLocaleString()}</strong>${effPendingBase > 0 ? ' · Pending: <strong>' + effPendingBase.toLocaleString() + '</strong>' : ''}</span><span style="font-weight: 600; color: #059669; background: #ecfdf5; padding: 2px 8px; border-radius: 12px; border: 1px solid #a7f3d0;"><i class="fa-solid fa-circle-check" style="font-size: 10px;"></i> Max Allowable: ${maxOrderablePkgs} ${pkgUnit}${maxOrderablePkgs > 1 ? 's' : ''} (= ${(maxOrderablePkgs * conv).toLocaleString()} ${baseUnit}s)</span>`;
+            }
+        }
+
+        qtyInput.oninput = function() {
+            updateThresholdDisplay();
+        };
+
+        convInput.oninput = function() {
+            updateThresholdDisplay();
+        };
+
+        pkgUnitSelect.onchange = function() {
+            updateThresholdDisplay();
+        };
+
+        function populateProducts(currentCat, preferredMedId = '') {
+            if (!hasSupplier || !currentCat) {
+                prodSelect.innerHTML = `<option value="">${hasSupplier ? '-- Select Category First --' : '-- First Select Supplier --'}</option>`;
+                prodSelect.disabled = true;
+                updateThresholdDisplay();
+                if (prodSelect._syncSearchable) prodSelect._syncSearchable();
+                return;
+            }
+            const prods = getSupplierCategoryProducts(supplierId, currentCat);
+            if (prods.length === 0) {
+                prodSelect.innerHTML = '<option value="">-- No Products Available --</option>';
+                prodSelect.disabled = true;
+                updateThresholdDisplay();
+                if (prodSelect._syncSearchable) prodSelect._syncSearchable();
+            } else {
+                let pOptions = `<option value="">-- Select Product (${prods.length}) --</option>`;
+                prods.forEach(p => {
+                    const isSel = (p.id === preferredMedId) ? 'selected' : '';
+                    
+                    let pBrand = p.brand || '';
+                    let pTitle = p.product_name || '';
+                    let displayName = pBrand;
+                    if (pTitle && pTitle.toLowerCase() !== pBrand.toLowerCase()) {
+                        displayName += ` - ${pTitle}`;
+                    }
+
+                    let detailTag = '';
+                    if (p.spec_tag) {
+                        detailTag = ` ${p.spec_tag}`;
+                    } else if (p.size) {
+                        detailTag = ` [Size: ${p.size}]`;
+                    } else if (p.dosage) {
+                        detailTag = ` [${p.dosage}]`;
+                    }
+
+                    const genericExtra = (p.generic && p.generic !== pTitle && p.generic !== pBrand && p.generic.toLowerCase() !== 'n/a') ? ` (${p.generic})` : '';
+                    const med = medicinesStockInfo[p.id];
+                    let capTag = '';
+                    if (med) {
+                        const mConv = med.conversion_qty || 1;
+                        const mPkg = med.packaging_unit || 'Box';
+                        const mPend = med.pending_base_qty !== undefined ? med.pending_base_qty : ((med.pending_qty || 0) * mConv);
+                        const effPending = Math.max(0, mPend - (p.id === preferredMedId ? (currentPoQty * mConv) : 0));
+                        const maxOrdBase = Math.max(0, med.reorder_point - med.stock - effPending);
+                        const maxOrdPkg = Math.floor(maxOrdBase / mConv);
+                        if (maxOrdPkg <= 0) {
+                            capTag = ' [At Capacity]';
+                        } else {
+                            capTag = ` [Max: ${maxOrdPkg} ${mPkg}s]`;
+                        }
+                    }
+                    pOptions += `<option value="${p.id}" ${isSel}>${displayName}${detailTag}${genericExtra}${capTag}</option>`;
+                });
+                prodSelect.innerHTML = pOptions;
+                prodSelect.disabled = false;
+                if (preferredMedId) prodSelect.value = preferredMedId;
+                updateThresholdDisplay();
+                if (prodSelect._syncSearchable) prodSelect._syncSearchable();
+            }
+        }
+
+        makeSearchableSelect(catSelect, { placeholder: 'Select category...' });
+        makeSearchableSelect(prodSelect, { placeholder: 'Select product...' });
+
+        // Initialize packaging units
+        const initialPkg = selectedPkgUnit || (selectedMedId && medicinesStockInfo[selectedMedId] ? medicinesStockInfo[selectedMedId].packaging_unit : 'Box');
+        populatePackagingUnits(initialPkg);
+
+        populateProducts(selectedCategory, selectedMedId);
+
+        catSelect.onchange = function() {
+            populateProducts(this.value);
+        };
+
+        prodSelect.onchange = function() {
+            const medId = this.value;
+            if (medId && medicinesStockInfo[medId]) {
+                const med = medicinesStockInfo[medId];
+                if (!selectedConvQty || selectedMedId !== medId) {
+                    convInput.value = med.conversion_qty || 1;
+                }
+                if (!selectedPkgUnit || selectedMedId !== medId) {
+                    populatePackagingUnits(med.packaging_unit || 'Box');
+                }
+            }
+            updateThresholdDisplay();
+        };
+
+        row.appendChild(tier1);
+        row.appendChild(tier2);
+        row.appendChild(thresholdHint);
+
+        return row;
+    }
+
+    function onSupplierChange(supplierId) {
+        const hint = document.getElementById('create-supplier-hint');
+        const container = document.getElementById('items-container');
+        if (!container) return;
+
+        if (!supplierId || !supplierCatalog[supplierId]) {
+            if (hint) hint.style.display = 'none';
+            container.innerHTML = '';
+            container.appendChild(createItemRowElement(''));
+            return;
+        }
+
+        const sup = supplierCatalog[supplierId];
+        const total = getSupplierTotalProductCount(supplierId);
+        const categories = getSupplierCategories(supplierId);
+
+        if (hint) {
+            hint.style.display = 'block';
+            hint.innerHTML = `<i class="fa-solid fa-circle-check"></i> <strong>${total} registered product(s)</strong> across <strong>${categories.length} categories</strong> available from ${sup.name}`;
+        }
+
+        container.innerHTML = '';
+        container.appendChild(createItemRowElement(supplierId));
+    }
+
+    function addItemRow() {
+        const supplierId = document.getElementById('create-po-supplier')?.value || '';
+        const container = document.getElementById('items-container');
+        if (container) {
+            container.appendChild(createItemRowElement(supplierId));
+        }
+    }
+
+    function removeRow(btn) {
+        const row = btn.closest('.po-item-row');
+        const container = row?.parentElement;
+        if (!container) return;
+        const rows = container.querySelectorAll('.po-item-row');
+        if (rows.length > 1) {
+            row.remove();
+        } else {
+            alert("At least one product item is required in the purchase order.");
+        }
+    }
+
+    function validatePOForm(formId, isEdit = false, poId = '') {
+        const form = document.getElementById(formId);
+        if (!form) return true;
+
+        const rows = form.querySelectorAll('.po-item-row');
+        if (rows.length === 0) {
+            alert("Please add at least one item to the purchase order.");
+            return false;
+        }
+
+        const medTotalsBase = {};
+        let hasError = false;
+
+        rows.forEach(row => {
+            if (hasError) return;
+            const prodSelect = row.querySelector('.po-product-select');
+            const qtyInput = row.querySelector('input[name="quantity[]"]');
+            const convInput = row.querySelector('input[name="conversion_qty[]"]');
+            const medId = prodSelect?.value;
+            const qty = parseInt(qtyInput?.value, 10) || 0;
+            const conv = parseInt(convInput?.value, 10) || 1;
+
+            if (!medId) {
+                alert("Please select a valid product for every row in the order.");
+                prodSelect?.focus();
+                hasError = true;
+                return;
+            }
+
+            if (qty <= 0) {
+                const medInfo = medicinesStockInfo[medId];
+                const medName = medInfo ? medInfo.brand : 'Selected product';
+                alert(`Cannot order ${medName}: Package quantity must be at least 1 unit.`);
+                qtyInput?.focus();
+                hasError = true;
+                return;
+            }
+
+            if (conv <= 0) {
+                alert("Base units inside per package must be at least 1.");
+                convInput?.focus();
+                hasError = true;
+                return;
+            }
+
+            const itemBaseQty = qty * conv;
+            medTotalsBase[medId] = (medTotalsBase[medId] || 0) + itemBaseQty;
+        });
+
+        if (hasError) return false;
+
+        // Verify aggregated base totals per medicine against storage threshold
+        for (const [medId, totalBaseQty] of Object.entries(medTotalsBase)) {
+            const med = medicinesStockInfo[medId];
+            if (!med) continue;
+
+            let currentPoBaseQty = 0;
+            if (isEdit && poId && typeof poItemsMap !== 'undefined' && poItemsMap[poId]) {
+                const existing = poItemsMap[poId].filter(it => it.medicine_id === medId);
+                existing.forEach(it => {
+                    currentPoBaseQty += (it.quantity || 0) * (it.conversion_qty || 1);
+                });
+            }
+
+            const pendingBase = med.pending_base_qty !== undefined ? med.pending_base_qty : ((med.pending_qty || 0) * (med.conversion_qty || 1));
+            const effectivePendingBase = Math.max(0, pendingBase - currentPoBaseQty);
+            const maxOrderableBase = Math.max(0, med.reorder_point - med.stock - effectivePendingBase);
+            const baseUnit = med.base_unit || 'Piece';
+
+            if (totalBaseQty > maxOrderableBase) {
+                alert(
+                    `Cannot submit Purchase Order to prevent overstocking!\n\n` +
+                    `Product: ${med.brand}\n` +
+                    `Total Base Units Ordered: ${totalBaseQty.toLocaleString()} ${baseUnit}s\n` +
+                    `Storage Capacity Threshold: ${med.reorder_point.toLocaleString()} ${baseUnit}s\n` +
+                    `Current In-Stock: ${med.stock.toLocaleString()} ${baseUnit}s\n` +
+                    (effectivePendingBase > 0 ? `Pending Other Deliveries: ${effectivePendingBase.toLocaleString()} ${baseUnit}s\n` : '') +
+                    `Maximum Allowable Incoming: ${maxOrderableBase.toLocaleString()} ${baseUnit}s.\n\n` +
+                    `Please adjust the ordered package quantity or pack conversion to stay within storage capacity.`
+                );
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const createForm = document.getElementById('create-po-form');
+        if (createForm) {
+            createForm.onsubmit = function(e) {
+                if (!validatePOForm('create-po-form', false)) {
+                    e.preventDefault();
+                    return false;
+                }
+            };
+        }
+
+        const editForm = document.getElementById('edit-po-form');
+        if (editForm) {
+            editForm.onsubmit = function(e) {
+                const poId = document.getElementById('edit-po-id')?.value || '';
+                if (!validatePOForm('edit-po-form', true, poId)) {
+                    e.preventDefault();
+                    return false;
+                }
+            };
+        }
+    });
+
+    function setStatusFilter(status, btn) {
+        const buttons = document.querySelectorAll('.filter-btn');
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('filter-status-val').value = status;
+        filterPO();
+    }
+
+    function parseDateParts(dateStr) {
+        if (!dateStr) return { year: '', month: '' };
+        let year = '', month = '';
+        if (dateStr.includes('-')) {
+            const parts = dateStr.split(' ')[0].split('-');
+            if (parts.length >= 2) {
+                year = parts[0];
+                month = parts[1].padStart(2, '0');
+            }
+        } else if (dateStr.includes('/')) {
+            const parts = dateStr.split(' ')[0].split('/');
+            if (parts.length === 3) {
+                month = parts[0].padStart(2, '0');
+                year = parts[2];
+            }
+        }
+        return { year, month };
+    }
+
+    let poCalFilter = null;
+
+    function filterPO() {
+        const search = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+        const supplier = (document.getElementById('filter-supplier')?.value || '').toLowerCase();
+        const calVals = poCalFilter ? poCalFilter.getFilterValues() : { month: null, year: null };
+        const selMonth = calVals.month;
+        const selYear = calVals.year;
+        const status = document.getElementById('filter-status-val')?.value || 'all';
+        const table = document.querySelector('table');
+        
+        const rows = document.querySelectorAll('.po-row');
+        
+        rows.forEach(row => {
+            const rId = (row.dataset.id || '').toLowerCase();
+            const rSupplier = (row.dataset.supplier || '').toLowerCase();
+            const rProducts = (row.dataset.products || '').toLowerCase();
+            const rPrepared = (row.dataset.prepared || '').toLowerCase();
+            const rStatus = row.dataset.status || '';
+            const dateStr = row.dataset.date || '';
+            
+            const matchesSearch = !search || rId.includes(search) || rSupplier.includes(search) || rProducts.includes(search) || rPrepared.includes(search);
+            const matchesSupplier = !supplier || rSupplier.includes(supplier);
+            const matchesStatus = status === 'all' || rStatus === status;
+            
+            const { year, month } = parseDateParts(dateStr);
+            const matchesMonth = !selMonth || month === selMonth;
+            const matchesYear = !selYear || year === selYear;
+            
+            const isMatch = matchesSearch && matchesSupplier && matchesStatus && matchesMonth && matchesYear;
+            row.dataset.filteredHidden = isMatch ? 'false' : 'true';
+            row.style.display = isMatch ? '' : 'none';
+        });
+
+        if (table) {
+            if (table.rePaginate) {
+                table.rePaginate();
+            } else if (typeof window.paginateTable === 'function') {
+                window.paginateTable(table, 10);
+            }
+        }
+    }
+
+    // Modal Control Functions
+    function openPOModal() {
+        const modal = document.getElementById('create-po-modal');
+        if (modal) modal.classList.add('active');
+        const supSelect = document.getElementById('create-po-supplier');
+        if (supSelect && supSelect._syncSearchable) supSelect._syncSearchable();
+        const container = document.getElementById('items-container');
+        if (supSelect && container && container.children.length === 0) {
+            onSupplierChange(supSelect.value);
+        }
+    }
+    function closePOModal() {
+        const modal = document.getElementById('create-po-modal');
+        if (modal) modal.classList.remove('active');
+    }
+    function closePOModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closePOModal();
+        }
+    }
+</script>
+
+<!-- Edit Purchase Order Modal -->
+<div id="edit-po-modal" class="modal-overlay" onclick="closeEditPOModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 720px; padding: 24px; overflow: visible;">
+        <button class="modal-close" onclick="closeEditPOModal()">&times;</button>
+        <div class="modal-header" style="padding: 0 0 16px 0;">
+            <h3>Edit Purchase Order</h3>
+            <p>Update the supplier and items for this order.</p>
+        </div>
+        <form id="edit-po-form" action="{{ url_for('edit_po') }}" method="POST">
+            <div class="modal-body" style="padding: 16px 0 0 0;">
+                <input type="hidden" id="edit-po-id" name="id">
+                <div class="po-grid-row">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Supplier</label>
+                        <select class="form-control" id="edit-po-supplier" name="supplier_id" onchange="onEditSupplierChange(this.value)" required>
+                            <option value="">-- Select Supplier --</option>
+                            {% for supplier in suppliers %}
+                                <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div id="edit-supplier-hint" style="font-size: 11.5px; color: #10b981; font-weight: 500; margin-top: 5px; display: none;"></div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label>Notes / remarks</label>
+                        <input type="text" class="form-control" id="edit-po-notes" name="notes" placeholder="Enter notes or remarks here" maxlength="25">
+                    </div>
+                </div>
+
+                <div id="edit-items-container" style="margin-top: 14px; margin-bottom: 6px;">
+                    <!-- Dynamic item rows will be injected here -->
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
+                    <button type="button" class="btn-action-outline" onclick="addEditItemRow()">+ Add Item</button>
+                    <div style="display: flex; gap: 12px;">
+                        <button type="button" class="modal-btn-cancel" onclick="closeEditPOModal()">Cancel</button>
+                        <button type="submit" class="modal-btn-save">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function onEditSupplierChange(supplierId) {
+        const hint = document.getElementById('edit-supplier-hint');
+        const container = document.getElementById('edit-items-container');
+        if (!container) return;
+
+        if (!supplierId || !supplierCatalog[supplierId]) {
+            if (hint) hint.style.display = 'none';
+            container.innerHTML = '';
+            container.appendChild(createItemRowElement(''));
+            return;
+        }
+
+        const sup = supplierCatalog[supplierId];
+        const total = getSupplierTotalProductCount(supplierId);
+        const categories = getSupplierCategories(supplierId);
+
+        if (hint) {
+            hint.style.display = 'block';
+            hint.innerHTML = `<i class="fa-solid fa-circle-check"></i> <strong>${total} registered product(s)</strong> across <strong>${categories.length} categories</strong> available from ${sup.name}`;
+        }
+
+        container.innerHTML = '';
+        container.appendChild(createItemRowElement(supplierId));
+    }
+
+    function addEditItemRow(selectedCategory = '', selectedMedId = '', quantity = 1, currentPoQty = 0, selectedPkgUnit = '', selectedConvQty = null) {
+        const supplierId = document.getElementById('edit-po-supplier')?.value || '';
+        const container = document.getElementById('edit-items-container');
+        if (container) {
+            container.appendChild(createItemRowElement(supplierId, selectedCategory, selectedMedId, quantity, currentPoQty, selectedPkgUnit, selectedConvQty));
+        }
+    }
+
+    function openEditPOModal(poId, supplierId, notes) {
+        document.getElementById('edit-po-id').value = poId;
+        const editSup = document.getElementById('edit-po-supplier');
+        if (editSup) {
+            editSup.value = supplierId;
+            if (editSup._syncSearchable) editSup._syncSearchable();
+        }
+        document.getElementById('edit-po-notes').value = notes;
+        
+        const container = document.getElementById('edit-items-container');
+        container.innerHTML = '';
+        
+        const hint = document.getElementById('edit-supplier-hint');
+        if (supplierId && supplierCatalog[supplierId]) {
+            const total = getSupplierTotalProductCount(supplierId);
+            const categories = getSupplierCategories(supplierId);
+            if (hint) {
+                hint.style.display = 'block';
+                hint.innerHTML = `<i class="fa-solid fa-circle-check"></i> <strong>${total} registered product(s)</strong> across <strong>${categories.length} categories</strong> available from ${supplierCatalog[supplierId].name}`;
+            }
+        } else if (hint) {
+            hint.style.display = 'none';
+        }
+
+        const items = poItemsMap[poId] || [];
+        items.forEach(item => {
+            addEditItemRow(item.category || '', item.medicine_id, item.quantity, item.quantity, item.packaging_unit, item.conversion_qty);
+        });
+        
+        if (items.length === 0) {
+            addEditItemRow();
+        }
+        
+        document.getElementById('edit-po-modal').classList.add('active');
+    }
+    
+    function closeEditPOModal() {
+        document.getElementById('edit-po-modal').classList.remove('active');
+    }
+    
+    function closeEditPOModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeEditPOModal();
+        }
+    }
+</script>
+
+<!-- PO Details Modal -->
+<div id="po-details-modal" class="modal-overlay" onclick="closeDetailsModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 740px;">
+        <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+        <div class="modal-header">
+            <h3>Purchase Order Details</h3>
+            <p>Full order summary and item breakdown.</p>
+        </div>
+        
+        <div class="modal-body">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; margin-bottom: 22px; font-size: 13.5px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 18px;">
+                <div><strong style="color: #475569;">Order ID:</strong> <span id="det-po-id" style="font-weight: 700; color: var(--text);"></span></div>
+                <div><strong style="color: #475569;">Supplier:</strong> <span id="det-supplier" style="color: var(--text);"></span></div>
+                <div><strong style="color: #475569;">Order Date:</strong> <span id="det-date" style="color: var(--text);"></span></div>
+                <div><strong style="color: #475569;">Prepared By:</strong> <span id="det-prepared-by" style="color: var(--text);"></span></div>
+                <div><strong style="color: #475569;">Status:</strong> <span id="det-status" class="status-badge" style="padding: 4px 10px; border-radius: 12px; font-size: 11px;"></span></div>
+                <div id="det-received-by-container"><strong style="color: #475569;">Received By:</strong> <span id="det-received-by" style="color: var(--text);"></span></div>
+                <div><strong style="color: #475569;">Total Packages:</strong> <span id="det-total-packages" style="font-weight: 700; color: var(--text);">0</span></div>
+                <div><strong style="color: #475569;">Total Base Units:</strong> <span id="det-total-base-units" style="font-weight: 700; color: #059669;">0</span></div>
+                <div style="grid-column: span 2; border-top: 1px solid #e2e8f0; padding-top: 8px; margin-top: 2px;"><strong style="color: #475569;">Notes / Remarks:</strong> <span id="det-notes" style="color: #64748b;"></span></div>
+            </div>
+            
+            <h4 style="font-size: 14px; font-weight: 700; margin-bottom: 12px; border-bottom: 1.5px solid var(--border-light, #e2e8f0); padding-bottom: 8px; color: var(--text-dark); display: flex; justify-content: space-between; align-items: center;">
+                <span>Ordered Items Breakdown</span>
+                <span id="det-items-count-badge" style="font-size: 11.5px; font-weight: 600; color: #64748b; background: #f1f5f9; padding: 2px 10px; border-radius: 12px;">0 item(s)</span>
+            </h4>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 1.5px solid #cbd5e1; color: #64748b;">
+                        <th style="padding: 8px 6px; font-size: 12px; text-align: left; text-transform: uppercase; letter-spacing: 0.3px;">Product</th>
+                        {% if app_settings.show_generic != 'false' %}
+                        <th style="padding: 8px 6px; font-size: 12px; text-align: left; text-transform: uppercase; letter-spacing: 0.3px;">Generic Name</th>
+                        {% endif %}
+                        <th style="padding: 8px 6px; font-size: 12px; text-align: center; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap;">Ordered Pkgs</th>
+                        <th style="padding: 8px 6px; font-size: 12px; text-align: center; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap;">Units / Pkg</th>
+                        <th style="padding: 8px 6px; font-size: 12px; text-align: right; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap;">Total Base Units</th>
+                    </tr>
+                </thead>
+                <tbody id="po-details-items-body">
+                    <!-- Rows will be dynamically loaded here -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+            <div id="details-receiving-actions" style="display: flex; gap: 8px; align-items: center;">
+                <button type="button" class="btn-action-outline btn-edit" id="det-edit-btn" onclick="triggerEditFromDetails()">Edit PO</button>
+                <button type="button" id="det-receive-rep-btn" class="btn-primary" style="display:none;background:#d97706;border-color:#d97706;padding:7px 16px;border-radius:20px;font-size:12.5px;font-weight:600;" onclick="closeDetailsModal(); openExpiryModal(currentDetailPoId);">
+                    <i class="fa-solid fa-arrows-rotate"></i> Receive Replacement
+                </button>
+                <button type="button" id="det-return-supplier-btn" class="btn-action-outline" style="display:none;border-color:#d97706;color:#d97706;padding:7px 16px;border-radius:20px;font-size:12.5px;font-weight:600;" onclick="openReturnToSupplierModal(currentDetailPoId)">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> Return to Supplier
+                </button>
+                <form id="details-delete-form" action="" method="POST" style="display:inline;" onsubmit="return confirmAction(event, 'Delete PO?')">
+                    <button type="submit" class="btn-action-outline btn-delete" id="det-delete-btn">Delete PO</button>
+                </form>
+            </div>
+            <button class="modal-btn-cancel" onclick="closeDetailsModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Return to Supplier Modal for Received POs -->
+<div id="return-supplier-modal" class="modal-overlay" onclick="closeReturnSupplierModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 540px; padding: 24px;">
+        <button class="modal-close" onclick="closeReturnSupplierModal()">&times;</button>
+        <div class="modal-header" style="padding: 0 0 16px 0; border-bottom: 1px solid var(--border);">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="width: 38px; height: 38px; border-radius: 10px; background: rgba(217, 119, 6, 0.12); display: flex; align-items: center; justify-content: center;">
+                    <i class="fa-solid fa-arrow-rotate-left" style="color: #b45309; font-size: 16px;"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 16px;">Return Item to Supplier</h3>
+                    <p style="margin: 2px 0 0; font-size: 12px; color: var(--text-secondary);">Return defective or damaged items from PO for replacement.</p>
+                </div>
+            </div>
+        </div>
+        <form id="return-supplier-form" action="" method="POST">
+            <div class="modal-body" style="padding: 16px 0 0 0; display: flex; flex-direction: column; gap: 14px;">
+                <div style="background: var(--bg-soft); border-radius: 10px; padding: 10px 14px; font-size: 12.5px; border: 1px solid var(--border);">
+                    <div><strong>Purchase Order:</strong> <span id="ret-modal-po-id" style="font-weight: 700; color: var(--accent);"></span></div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 12px; font-weight: 700;">Select Product to Return <span style="color: #dc2626;">*</span></label>
+                    <select class="form-control" name="medicine_id" id="ret-modal-medicine-select" required onchange="onReturnMedicineChange()">
+                        <!-- Dynamic options from PO items -->
+                    </select>
+                    <div id="ret-modal-item-hint" style="font-size: 11.5px; color: var(--text-muted); margin-top: 4px;"></div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 12px; font-weight: 700;">Quantity to Return <span style="color: #dc2626;">*</span></label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="number" class="form-control" name="return_quantity" id="ret-modal-qty" min="1" value="1" required style="max-width: 130px; font-weight: 700; text-align: center;">
+                        <span id="ret-modal-unit-label" style="font-size: 12.5px; font-weight: 600; color: var(--text-secondary);">package(s)</span>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 12px; font-weight: 700;">Return Reason / Incident Type <span style="color: #dc2626;">*</span></label>
+                    <select class="form-control" name="return_reason" required>
+                        <option value="Damaged / broken packaging">Damaged / broken packaging</option>
+                        <option value="Defective / leak / contaminated quality">Defective / leak / contaminated quality</option>
+                        <option value="Discovered near expiry / expired">Discovered near expiry date</option>
+                        <option value="Wrong product or dosage delivered">Wrong product / dosage delivered</option>
+                        <option value="Unacceptable quality incident">Other quality defect / incident</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 12px; font-weight: 700;">Incident Details / Remarks</label>
+                    <input type="text" class="form-control" name="notes" placeholder="e.g. Broken seal discovered upon opening inner package" maxlength="80">
+                </div>
+
+                <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 10px 12px; font-size: 11.5px; color: var(--text); line-height: 1.4;">
+                    <i class="fa-solid fa-circle-info" style="color: #d97706; margin-right: 4px;"></i>
+                    Returned quantity will be deducted from your current inventory stock, and a replacement PO with status <strong>"For Replacement"</strong> will be created.
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                    <button type="button" class="modal-btn-cancel" onclick="closeReturnSupplierModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" style="background: #d97706; border-color: #d97706; border-radius: 20px; padding: 8px 20px; font-weight: 600;">
+                        <i class="fa-solid fa-arrow-rotate-left"></i> Process Return
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const poItemsMap = {{ po_items_map | tojson }};
+    let currentDetailPoId = '';
+    let currentDetailSupplierId = '';
+    let currentDetailNotes = '';
+
+    function triggerEditFromDetails() {
+        closeDetailsModal();
+        openEditPOModal(currentDetailPoId, currentDetailSupplierId, currentDetailNotes);
+    }
+
+    function handleShowPODetails(btn) {
+        if (!btn) return;
+        const d = btn.dataset;
+        showPODetails(
+            d.poId,
+            d.supplier,
+            d.orderDate,
+            d.status,
+            d.preparedBy,
+            d.notes,
+            d.receivedBy,
+            d.supplierId
+        );
+    }
+
+    function showPODetails(poId, supplier, orderDate, status, preparedBy, notes, receivedBy, supplierId) {
+        currentDetailPoId = poId;
+        currentDetailSupplierId = supplierId;
+        currentDetailNotes = notes;
+
+        const detId = document.getElementById('det-po-id');
+        if (detId) detId.innerText = poId || '';
+        const detSup = document.getElementById('det-supplier');
+        if (detSup) detSup.innerText = supplier || '';
+        const detDate = document.getElementById('det-date');
+        if (detDate) detDate.innerText = orderDate || '';
+        const detPrep = document.getElementById('det-prepared-by');
+        if (detPrep) detPrep.innerText = preparedBy || '';
+        const detNotes = document.getElementById('det-notes');
+        if (detNotes) detNotes.innerText = notes ? notes : 'None';
+        
+        // Action buttons visibility inside details modal
+        const recActions = document.getElementById('details-receiving-actions');
+        const delForm = document.getElementById('details-delete-form');
+        const detEditBtn = document.getElementById('det-edit-btn');
+        const detRecRepBtn = document.getElementById('det-receive-rep-btn');
+        const detReturnBtn = document.getElementById('det-return-supplier-btn');
+
+        if (recActions) {
+            recActions.style.display = 'flex';
+            if (detEditBtn) detEditBtn.style.display = (status === 'For Receiving') ? '' : 'none';
+            if (detRecRepBtn) detRecRepBtn.style.display = (status === 'For Replacement') ? 'inline-flex' : 'none';
+            if (detReturnBtn) detReturnBtn.style.display = (status === 'Received') ? 'inline-flex' : 'none';
+            if (delForm) {
+                if (status === 'For Receiving' || status === 'For Replacement') {
+                    delForm.style.display = 'inline';
+                    delForm.action = `/purchase_orders/${poId}/delete`;
+                } else {
+                    delForm.style.display = 'none';
+                }
+            }
+        }
+
+        // Received By info
+        const recByContainer = document.getElementById('det-received-by-container');
+        const detRecBy = document.getElementById('det-received-by');
+        if (recByContainer) {
+            if (status === 'Received') {
+                recByContainer.style.display = '';
+                if (detRecBy) detRecBy.innerText = receivedBy ? receivedBy : 'N/A';
+            } else {
+                recByContainer.style.display = 'none';
+            }
+        }
+        
+        // Status badge logic
+        const statusSpan = document.getElementById('det-status');
+        if (statusSpan) {
+            statusSpan.innerText = status;
+            statusSpan.className = 'status-badge'; // reset
+            if (status === 'For Receiving') {
+                statusSpan.classList.add('status-for-receiving');
+            } else if (status === 'Received') {
+                statusSpan.classList.add('status-received');
+            } else if (status === 'For Replacement') {
+                statusSpan.classList.add('status-for-replacement');
+            } else {
+                statusSpan.classList.add('status-partial');
+            }
+        }
+        
+        // Load items table
+        const tbody = document.getElementById('po-details-items-body');
+        if (tbody) {
+            tbody.innerHTML = '';
+            
+            const items = poItemsMap[poId] || [];
+            let grandTotalPkgs = 0;
+            let grandTotalBase = 0;
+            const baseUnitBreakdowns = {};
+
+            if (items.length === 0) {
+                const cols = '{{ app_settings.show_generic }}' === 'false' ? 4 : 5;
+                tbody.innerHTML = `<tr><td colspan="${cols}" style="text-align:center; padding: 16px; color: var(--text-gray);">No items in this order.</td></tr>`;
+            } else {
+                items.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid #f1f5f9';
+                    const conv = item.conversion_qty || 1;
+                    const pkgU = item.packaging_unit || 'Box';
+                    const baseU = item.base_unit || 'Piece';
+                    const qtyPkgs = item.quantity || 0;
+                    const itemBaseTotal = qtyPkgs * conv;
+
+                    grandTotalPkgs += qtyPkgs;
+                    grandTotalBase += itemBaseTotal;
+                    baseUnitBreakdowns[baseU] = (baseUnitBreakdowns[baseU] || 0) + itemBaseTotal;
+
+                    const pkgLabel = `${qtyPkgs} ${pkgU}${qtyPkgs > 1 && !pkgU.endsWith('s') ? (pkgU.endsWith('x') ? 'es' : 's') : ''}`;
+                    const convLabel = `${conv} ${baseU}${conv > 1 && !baseU.endsWith('s') ? 's' : ''} / ${pkgU}`;
+                    const baseLabel = `${itemBaseTotal.toLocaleString()} ${baseU}${itemBaseTotal > 1 && !baseU.endsWith('s') ? 's' : ''}`;
+
+                    const genericCell = '{{ app_settings.show_generic }}' !== 'false'
+                        ? `<td style="padding: 10px 6px; font-size: 12.5px; color: #475569;">${item.generic_name || 'N/A'}</td>`
+                        : '';
+                    tr.innerHTML = `
+                        <td style="padding: 10px 6px; font-size: 13px; font-weight: 600; color: var(--text);">${item.medicine_name}</td>
+                        ${genericCell}
+                        <td style="padding: 10px 6px; font-size: 13px; text-align: center; font-weight: 600; color: var(--text);">${pkgLabel}</td>
+                        <td style="padding: 10px 6px; font-size: 12px; text-align: center; color: #64748b; font-weight: 500;">${convLabel}</td>
+                        <td style="padding: 10px 6px; font-size: 13px; text-align: right; font-weight: 700; color: #059669;">${baseLabel}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+
+            const detTotalPkgs = document.getElementById('det-total-packages');
+            if (detTotalPkgs) detTotalPkgs.innerText = `${grandTotalPkgs.toLocaleString()} packages`;
+
+            const detTotalBase = document.getElementById('det-total-base-units');
+            if (detTotalBase) {
+                const baseSummary = Object.entries(baseUnitBreakdowns)
+                    .map(([u, count]) => `${count.toLocaleString()} ${u}${count > 1 && !u.endsWith('s') ? 's' : ''}`)
+                    .join(', ');
+                detTotalBase.innerText = baseSummary || `${grandTotalBase.toLocaleString()} units`;
+            }
+
+            const detCountBadge = document.getElementById('det-items-count-badge');
+            if (detCountBadge) detCountBadge.innerText = `${items.length} item(s)`;
+        }
+        
+        const modal = document.getElementById('po-details-modal');
+        if (modal) modal.classList.add('active');
+    }
+    
+    function closeDetailsModal() {
+        document.getElementById('po-details-modal').classList.remove('active');
+    }
+    
+    function closeDetailsModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeDetailsModal();
+        }
+    }
+
+    // ── Return to Supplier Functions for Received POs ──
+    function openReturnToSupplierModal(poId) {
+        const modal = document.getElementById('return-supplier-modal');
+        if (!modal) return;
+        const form = document.getElementById('return-supplier-form');
+        if (form) form.action = `/purchase_orders/${poId}/return`;
+        const poIdSpan = document.getElementById('ret-modal-po-id');
+        if (poIdSpan) poIdSpan.innerText = poId;
+
+        const medSelect = document.getElementById('ret-modal-medicine-select');
+        if (medSelect) {
+            medSelect.innerHTML = '';
+            const items = poItemsMap[poId] || [];
+            items.forEach(it => {
+                const opt = document.createElement('option');
+                opt.value = it.medicine_id;
+                opt.dataset.qty = it.quantity;
+                opt.dataset.pkgUnit = it.packaging_unit || 'Box';
+                opt.dataset.conv = it.conversion_qty || 1;
+                opt.dataset.baseUnit = it.base_unit || 'Piece';
+                opt.textContent = `${it.medicine_name} (${it.quantity} ${it.packaging_unit || 'Box'}${it.quantity > 1 ? 's' : ''})`;
+                medSelect.appendChild(opt);
+            });
+            onReturnMedicineChange();
+        }
+        modal.classList.add('active');
+    }
+
+    function onReturnMedicineChange() {
+        const medSelect = document.getElementById('ret-modal-medicine-select');
+        if (!medSelect) return;
+        const opt = medSelect.options[medSelect.selectedIndex];
+        if (!opt) return;
+        const maxQty = parseInt(opt.dataset.qty, 10) || 1;
+        const pkgUnit = opt.dataset.pkgUnit || 'Box';
+        const conv = parseInt(opt.dataset.conv, 10) || 1;
+        const baseUnit = opt.dataset.baseUnit || 'Piece';
+
+        const qtyInput = document.getElementById('ret-modal-qty');
+        if (qtyInput) {
+            qtyInput.max = maxQty;
+            qtyInput.value = Math.min(parseInt(qtyInput.value, 10) || 1, maxQty);
+        }
+        const unitLabel = document.getElementById('ret-modal-unit-label');
+        if (unitLabel) unitLabel.textContent = `${pkgUnit}(s) (ordered: ${maxQty})`;
+
+        const hint = document.getElementById('ret-modal-item-hint');
+        if (hint) {
+            hint.textContent = `1 ${pkgUnit} = ${conv} ${baseUnit}${conv > 1 ? 's' : ''}`;
+        }
+    }
+
+    function closeReturnSupplierModal() {
+        const modal = document.getElementById('return-supplier-modal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    function closeReturnSupplierModalOnOverlay(e, overlay) {
+        if (e.target === overlay) closeReturnSupplierModal();
+    }
+</script>
+
+<!-- ─── Receive Delivery Modal ────────────────────────────────────────── -->
+<div id="expiry-modal-overlay" style="
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45);
+    z-index:2000; align-items:center; justify-content:center;">
+  <div style="
+      background:var(--card-bg); border-radius:18px; padding:26px 26px 22px;
+      width:100%; max-width:660px; max-height:92vh; overflow-y:auto;
+      box-shadow:0 24px 64px rgba(0,0,0,0.22); border:1px solid var(--border); margin:16px;">
+
+    <!-- Header -->
+    <div style="margin-bottom:16px;">
+      <h3 style="margin:0;font-size:16px;font-weight:800;color:var(--text);">Receive Order Delivery</h3>
+      <p style="margin:2px 0 0;font-size:12px;color:var(--text-secondary);">
+        Step through completeness, expiry dates, and manufactured dates.
+      </p>
+    </div>
+
+    <!-- ── 3 Tabs Navigation Bar ────────────────────────────────────────── -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;background:var(--bg-soft);padding:4px;border-radius:12px;border:1px solid var(--border);margin-bottom:16px;">
+      <button type="button" id="tab-btn-completeness" onclick="switchReceiveTab('completeness')"
+        style="padding:9px 10px;border-radius:8px;border:none;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;background:var(--card-bg);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+        <span>1. Completeness</span>
+      </button>
+      <button type="button" id="tab-btn-expiry" onclick="switchReceiveTab('expiry')"
+        style="padding:9px 10px;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;background:transparent;color:var(--text-secondary);">
+        <span>2. Expiry Dates</span>
+      </button>
+      <button type="button" id="tab-btn-mfg" onclick="switchReceiveTab('mfg')"
+        style="padding:9px 10px;border-radius:8px;border:none;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:all .15s;background:transparent;color:var(--text-secondary);">
+        <span>3. Mfg Dates</span>
+      </button>
+    </div>
+
+    <form id="expiry-form" method="POST" action="" onsubmit="return validateExpiryForm(event)">
+      <input type="hidden" name="skip_expiry" id="skip-expiry-input" value="0">
+
+      <!-- ── TAB PANE 1: Completeness of Received Products ──────────────── -->
+      <div id="tab-pane-completeness" style="display:block;">
+        <!-- Order Completeness Option -->
+        <div style="background:var(--bg-soft);border:1.5px solid var(--border);border-radius:12px;padding:14px 20px;margin-bottom:16px;width:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;text-align:center;">
+          <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);display:block;margin-bottom:8px;text-align:center;">
+            Order Delivery Status <span style="color:#dc2626;">*</span>
+          </label>
+          <div style="display:flex;gap:18px;align-items:center;justify-content:center;flex-wrap:wrap;">
+            <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text);">
+              <input type="radio" name="delivery_status" value="complete" checked onchange="onDeliveryStatusChange('complete')" style="accent-color:#059669;width:17px;height:17px;cursor:pointer;">
+              <span style="color:#059669;font-weight:700;">Complete Order</span>
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text);">
+              <input type="radio" name="delivery_status" value="incomplete" onchange="onDeliveryStatusChange('incomplete')" style="accent-color:#d97706;width:17px;height:17px;cursor:pointer;">
+              <span style="color:#d97706;font-weight:700;">Incomplete Order</span>
+            </label>
+            <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text);">
+              <input type="radio" name="delivery_status" value="return_replacement" onchange="onDeliveryStatusChange('return_replacement')" style="accent-color:#b45309;width:17px;height:17px;cursor:pointer;">
+              <span style="color:#b45309;font-weight:700;"><i class="fa-solid fa-arrows-rotate" style="font-size:11px;"></i> Return for Replacement</span>
+            </label>
+          </div>
+          <p id="delivery-status-note" style="margin:8px 0 0;font-size:11.5px;color:var(--text-secondary);line-height:1.4;text-align:center;">
+            Full delivery: all ordered products and quantities are delivered.
+          </p>
+        </div>
+
+        <!-- Completeness Items Container -->
+        <div id="completeness-items-container" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
+          <div style="text-align:center;padding:20px;color:var(--text-muted);">
+            <i class="fa-solid fa-spinner fa-spin"></i> Loading products…
+          </div>
+        </div>
+
+        <!-- Remainder Notice Banner (visible when incomplete and remainder > 0) -->
+        <div id="remainder-summary-badge" style="display:none;background:rgba(217,119,6,0.1);border:1px solid rgba(217,119,6,0.3);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text);line-height:1.5;">
+          <i class="fa-solid fa-truck-ramp-box" style="color:#d97706;margin-right:6px;"></i>
+          A new purchase order record will automatically be created to receive the remainder of <strong id="total-remainder-text">0</strong> product(s) upon future delivery.
+        </div>
+
+        <!-- Return Notice Banner (visible when return_replacement and return > 0) -->
+        <div id="return-summary-badge" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.35);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--text);line-height:1.5;">
+          <i class="fa-solid fa-arrow-rotate-left" style="color:#b45309;margin-right:6px;"></i>
+          <strong><span id="total-return-text">0</span> package(s)</strong> will be returned to the supplier. A new purchase order record with status <strong style="color:#b45309;">"For Replacement"</strong> will automatically be created to track replacement.
+        </div>
+
+        <!-- Step navigation to Tab 2 -->
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px;">
+          <button type="button" onclick="switchReceiveTab('expiry')"
+            style="padding:8px 18px;border-radius:8px;border:none;background:#059669;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s;">
+            Next: Expiry Dates <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── TAB PANE 2: Expiry Dates ────────────────────────────────────── -->
+      <div id="tab-pane-expiry" style="display:none;">
+        <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:10px;padding:10px 14px;margin-bottom:14px;">
+          <p style="margin:0;font-size:12px;color:var(--text-secondary);line-height:1.5;">
+            Assign expiry dates for received products. Choose whether all units share the <strong>Same Expiry Date</strong> or split into <strong>Different Expiry Dates</strong> across batches.
+          </p>
+        </div>
+
+        <!-- Expiry items container -->
+        <div id="expiry-items-container" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
+        </div>
+
+        <!-- Step navigation between tabs -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <button type="button" onclick="switchReceiveTab('completeness')"
+            class="btn-action-outline" style="padding:8px 16px;border-radius:8px;font-size:12.5px;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Completeness
+          </button>
+          <button type="button" onclick="switchReceiveTab('mfg')"
+            style="padding:8px 18px;border-radius:8px;border:none;background:#059669;color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background .15s;">
+            Next: Mfg Dates <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── TAB PANE 3: Manufactured Dates ─────────────────────────────── -->
+      <div id="tab-pane-mfg" style="display:none;">
+        <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);border-radius:10px;padding:10px 14px;margin-bottom:14px;">
+          <p style="margin:0;font-size:12px;color:var(--text-secondary);line-height:1.5;">
+            Assign manufactured dates for received products. Choose whether all units share the <strong>Same Manufactured Date</strong> or split into <strong>Different Manufactured Dates</strong> across batches.
+          </p>
+        </div>
+
+        <!-- Mfg items container -->
+        <div id="mfg-items-container" style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px;">
+        </div>
+
+        <!-- Step navigation between tabs -->
+        <div style="display:flex;justify-content:flex-start;align-items:center;margin-bottom:14px;">
+          <button type="button" onclick="switchReceiveTab('expiry')"
+            class="btn-action-outline" style="padding:8px 16px;border-radius:8px;font-size:12.5px;">
+            <i class="fa-solid fa-arrow-left"></i> Back to Expiry Dates
+          </button>
+        </div>
+      </div>
+
+      <!-- Actions (Modal footer with tab-specific actions) -->
+      <div style="border-top:1px solid var(--border);padding-top:16px;display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;align-items:center;">
+        <button type="button" onclick="closeExpiryModal()"
+            class="btn-action-outline"
+            style="padding:9px 20px;border-radius:9999px;font-size:13px;">
+          Cancel
+        </button>
+        <button type="submit" id="save-receive-btn"
+            style="padding:9px 22px;border-radius:9999px;font-size:13px;font-weight:700;display:none;
+                   background:#059669;color:#fff;border:none;cursor:pointer;
+                   align-items:center;justify-content:center;
+                   transition:background .15s;box-shadow:0 2px 8px rgba(5,150,105,0.3);">
+          Save status &amp; Set dates later
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  let cachedPOItems = [];
+  let currentDeliveryStatus = 'complete';
+  let currentReceiveTab = 'completeness';
+  let itemExpiryState = {};
+  let itemMfgState = {};
+
+  function hasEnteredAllDates() {
+    if (!cachedPOItems || cachedPOItems.length === 0) return false;
+    let hasReceivable = false;
+
+    for (let i = 0; i < cachedPOItems.length; i++) {
+      const item = cachedPOItems[i];
+      const medId = item.medicine_id;
+      const recQty = getReceivedQty(medId);
+      if (recQty <= 0) continue;
+      hasReceivable = true;
+
+      // Expiry check
+      const expState = itemExpiryState[medId] || { mode: 'same' };
+      if (expState.mode === 'same') {
+        const inp = document.getElementById(`same_expiry_input_${medId}`);
+        const val = (inp && inp.value ? inp.value.trim() : (expState.sameDate || '')).trim();
+        if (!val) return false;
+      } else {
+        const splits = expState.splits || [];
+        if (splits.length === 0) return false;
+        const allocated = splits.reduce((sum, r) => sum + (parseInt(r.qty, 10) || 0), 0);
+        if (allocated !== recQty) return false;
+        for (let s = 0; s < splits.length; s++) {
+          if (!splits[s].date || !splits[s].qty || splits[s].qty <= 0) return false;
+        }
+      }
+
+      // Mfg check
+      const mfgState = itemMfgState[medId] || { mode: 'same' };
+      if (mfgState.mode === 'same') {
+        const inp = document.getElementById(`same_mfg_input_${medId}`);
+        const val = (inp && inp.value ? inp.value.trim() : (mfgState.sameDate || '')).trim();
+        if (!val) return false;
+      } else {
+        const splits = mfgState.splits || [];
+        if (splits.length === 0) return false;
+        const allocated = splits.reduce((sum, r) => sum + (parseInt(r.qty, 10) || 0), 0);
+        if (allocated !== recQty) return false;
+        for (let s = 0; s < splits.length; s++) {
+          if (!splits[s].date || !splits[s].qty || splits[s].qty <= 0) return false;
+        }
+      }
+    }
+
+    return hasReceivable;
+  }
+
+  function updateFinalReceiveButton() {
+    const saveBtn = document.getElementById('save-receive-btn');
+    const skipInput = document.getElementById('skip-expiry-input');
+    if (!saveBtn) return;
+
+    const datesProvided = hasEnteredAllDates();
+    if (datesProvided) {
+      if (skipInput) skipInput.value = '0';
+      saveBtn.innerHTML = 'Save &amp; Receive Delivery';
+      saveBtn.title = 'All dates entered: save delivery and register batch inventory';
+    } else {
+      if (skipInput) skipInput.value = '1';
+      saveBtn.innerHTML = 'Save status &amp; Set dates later';
+      saveBtn.title = 'Dates not entered: save delivery status now and assign batch dates later';
+    }
+  }
+
+  function getReceivedQty(medId) {
+    const item = cachedPOItems.find(it => String(it.medicine_id) === String(medId));
+    if (!item) return 0;
+    const orderedQty = parseInt(item.quantity, 10) || 0;
+    if (currentDeliveryStatus === 'incomplete') {
+      const remInput = document.getElementById(`rem_input_${medId}`);
+      const remVal = remInput ? (parseInt(remInput.value, 10) || 0) : 0;
+      return Math.max(0, orderedQty - remVal);
+    } else if (currentDeliveryStatus === 'return_replacement') {
+      const recInput = document.getElementById(`ret_rec_input_${medId}`);
+      if (recInput) {
+        const val = parseInt(recInput.value, 10);
+        return isNaN(val) ? 0 : Math.max(0, Math.min(orderedQty, val));
+      }
+      return orderedQty;
+    }
+    return orderedQty;
+  }
+
+  function switchReceiveTab(tabName) {
+    currentReceiveTab = tabName;
+    const tabs = ['completeness', 'expiry', 'mfg'];
+    tabs.forEach(t => {
+      const pane = document.getElementById(`tab-pane-${t}`);
+      const btn = document.getElementById(`tab-btn-${t}`);
+      if (pane) pane.style.display = (t === tabName ? 'block' : 'none');
+      if (btn) {
+        if (t === tabName) {
+          btn.style.background = 'var(--card-bg)';
+          btn.style.color = 'var(--text)';
+          btn.style.fontWeight = '700';
+          btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
+        } else {
+          btn.style.background = 'transparent';
+          btn.style.color = 'var(--text-secondary)';
+          btn.style.fontWeight = '600';
+          btn.style.boxShadow = 'none';
+        }
+      }
+    });
+
+    const saveReceiveBtn = document.getElementById('save-receive-btn');
+
+    if (tabName === 'mfg') {
+      if (saveReceiveBtn) {
+        saveReceiveBtn.style.display = 'inline-flex';
+        updateFinalReceiveButton();
+      }
+    } else {
+      if (saveReceiveBtn) {
+        saveReceiveBtn.style.display = 'none';
+      }
+    }
+
+    if (tabName === 'expiry') {
+      renderExpiryItemsInModal();
+    } else if (tabName === 'mfg') {
+      renderMfgItemsInModal();
+    }
+  }
+
+  function onDeliveryStatusChange(status) {
+    currentDeliveryStatus = status;
+    const noteEl = document.getElementById('delivery-status-note');
+    if (status === 'complete') {
+      if (noteEl) noteEl.textContent = 'Full delivery: all ordered products and quantities are delivered.';
+    } else if (status === 'incomplete') {
+      if (noteEl) noteEl.textContent = 'Incomplete delivery: state how many units are missing and will be delivered later. Remainder will move to a new PO record for receiving.';
+    } else if (status === 'return_replacement') {
+      if (noteEl) noteEl.textContent = 'Delivery return / incident: specify the number of acceptable units received. The rest will be returned to the supplier and added to a "For Replacement" PO record.';
+    }
+    renderCompletenessItemsInModal();
+    renderExpiryItemsInModal();
+    renderMfgItemsInModal();
+  }
+
+  function onItemRemainingChange(medId, orderedQty) {
+    const remInput = document.getElementById(`rem_input_${medId}`);
+    if (!remInput) return;
+    let remVal = parseInt(remInput.value, 10);
+    if (isNaN(remVal) || remVal < 0) remVal = 0;
+    if (remVal > orderedQty) {
+      remVal = orderedQty;
+      remInput.value = orderedQty;
+    }
+
+    const recVal = Math.max(0, orderedQty - remVal);
+    const recDisplay = document.getElementById(`rec_display_${medId}`);
+    const recInput = document.getElementById(`rec_input_${medId}`);
+    const remHidden = document.getElementById(`rem_hidden_${medId}`);
+    if (recDisplay) recDisplay.textContent = `${recVal} units`;
+    if (recInput) recInput.value = recVal;
+    if (remHidden) remHidden.value = remVal;
+
+    // Update displays in other tabs if open or cached
+    const expTotalDisp = document.getElementById(`split_total_display_${medId}`);
+    if (expTotalDisp) expTotalDisp.textContent = `${recVal} units`;
+    const mfgTotalDisp = document.getElementById(`split_mfg_total_display_${medId}`);
+    if (mfgTotalDisp) mfgTotalDisp.textContent = `${recVal} units`;
+
+    if (itemExpiryState[medId] && itemExpiryState[medId].mode === 'split') {
+      updateSplitStatusBar(medId);
+    }
+    if (itemMfgState[medId] && itemMfgState[medId].mode === 'split') {
+      updateSplitMfgStatusBar(medId);
+    }
+
+    updateRemainderSummary();
+  }
+
+  function onItemReturnReceivedChange(medId, orderedQty) {
+    const recInput = document.getElementById(`ret_rec_input_${medId}`);
+    if (!recInput) return;
+    let recVal = parseInt(recInput.value, 10);
+    if (isNaN(recVal) || recVal < 0) recVal = 0;
+    if (recVal > orderedQty) {
+      recVal = orderedQty;
+      recInput.value = orderedQty;
+    }
+
+    const retVal = Math.max(0, orderedQty - recVal);
+    const retBadge = document.getElementById(`ret_badge_${medId}`);
+    const recHidden = document.getElementById(`rec_input_${medId}`);
+    const remHidden = document.getElementById(`rem_hidden_${medId}`);
+    if (recHidden) recHidden.value = recVal;
+    if (remHidden) remHidden.value = retVal;
+
+    const item = cachedPOItems.find(it => String(it.medicine_id) === String(medId));
+    const pkgU = (item && item.packaging_unit) ? item.packaging_unit : 'Box';
+    const conv = (item && item.conversion_qty) ? item.conversion_qty : 1;
+    const baseU = (item && item.base_unit) ? item.base_unit : 'Piece';
+    const convRetDesc = conv > 1 ? ` (= ${(retVal * conv).toLocaleString()} ${baseU}s)` : '';
+
+    if (retBadge) {
+      if (retVal > 0) {
+        retBadge.style.display = 'inline-flex';
+        retBadge.innerHTML = `<i class="fa-solid fa-arrow-rotate-left"></i> Return to Supplier: <strong>${retVal} ${pkgU}${retVal > 1 && !pkgU.endsWith('s') ? (pkgU.endsWith('x') ? 'es' : 's') : ''}</strong>${convRetDesc}`;
+      } else {
+        retBadge.style.display = 'none';
+      }
+    }
+
+    // Update displays in other tabs if open or cached
+    const expTotalDisp = document.getElementById(`split_total_display_${medId}`);
+    if (expTotalDisp) expTotalDisp.textContent = `${recVal} units`;
+    const mfgTotalDisp = document.getElementById(`split_mfg_total_display_${medId}`);
+    if (mfgTotalDisp) mfgTotalDisp.textContent = `${recVal} units`;
+
+    if (itemExpiryState[medId] && itemExpiryState[medId].mode === 'split') {
+      updateSplitStatusBar(medId);
+    }
+    if (itemMfgState[medId] && itemMfgState[medId].mode === 'split') {
+      updateSplitMfgStatusBar(medId);
+    }
+
+    updateReturnSummary();
+  }
+
+  function updateRemainderSummary() {
+    let totalRem = 0;
+    cachedPOItems.forEach(item => {
+      const remInput = document.getElementById(`rem_input_${item.medicine_id}`);
+      if (remInput) {
+        totalRem += (parseInt(remInput.value, 10) || 0);
+      }
+    });
+
+    const badge = document.getElementById('remainder-summary-badge');
+    const badgeText = document.getElementById('total-remainder-text');
+    if (currentDeliveryStatus === 'incomplete' && totalRem > 0) {
+      if (badge) badge.style.display = 'block';
+      if (badgeText) badgeText.textContent = totalRem;
+    } else {
+      if (badge) badge.style.display = 'none';
+    }
+  }
+
+  function updateReturnSummary() {
+    let totalRet = 0;
+    cachedPOItems.forEach(item => {
+      const recInput = document.getElementById(`ret_rec_input_${item.medicine_id}`);
+      const orderedQty = parseInt(item.quantity, 10) || 0;
+      if (recInput) {
+        const rVal = parseInt(recInput.value, 10);
+        const actualR = isNaN(rVal) ? orderedQty : Math.max(0, Math.min(orderedQty, rVal));
+        totalRet += Math.max(0, orderedQty - actualR);
+      }
+    });
+
+    const badge = document.getElementById('return-summary-badge');
+    const badgeText = document.getElementById('total-return-text');
+    if (currentDeliveryStatus === 'return_replacement' && totalRet > 0) {
+      if (badge) badge.style.display = 'block';
+      if (badgeText) badgeText.textContent = totalRet;
+    } else {
+      if (badge) badge.style.display = 'none';
+    }
+  }
+
+  /* ── Tab 1: Completeness Render ── */
+  function renderCompletenessItemsInModal() {
+    const container = document.getElementById('completeness-items-container');
+    if (!container) return;
+
+    if (!cachedPOItems || cachedPOItems.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-muted);font-size:13px;text-align:center;">No items found.</p>';
+      return;
+    }
+
+    const isIncomplete = (currentDeliveryStatus === 'incomplete');
+    const isReturnReplacement = (currentDeliveryStatus === 'return_replacement');
+
+    container.innerHTML = cachedPOItems.map(item => {
+      const medId = item.medicine_id;
+      const orderedQty = parseInt(item.quantity, 10) || 0;
+      const conv = item.conversion_qty || 1;
+      const pkgU = item.packaging_unit || 'Box';
+      const baseU = item.base_unit || 'Piece';
+      const pkgLabel = `${pkgU}${orderedQty > 1 && !pkgU.endsWith('s') ? (pkgU.endsWith('x') ? 'es' : 's') : ''}`;
+      const convOrderedDesc = conv > 1 ? ` · (= ${(orderedQty * conv).toLocaleString()} ${baseU}${orderedQty * conv > 1 && !baseU.endsWith('s') ? 's' : ''})` : '';
+
+      const prodTitle = item.brand || (item.medicine_name ? item.medicine_name.split(' - ')[0] : 'Product');
+      let sizeDosage = item.size_dosage || (item.size ? ('Size: ' + item.size) : (item.dosage || ''));
+      if (!sizeDosage && item.medicine_name && item.medicine_name.includes(' - ')) {
+        sizeDosage = item.medicine_name.split(' - ').slice(1).join(' - ');
+      }
+
+      if (isIncomplete) {
+        const existingRem = document.getElementById(`rem_input_${medId}`);
+        const remQty = existingRem ? (parseInt(existingRem.value, 10) || 0) : 0;
+        const recQty = Math.max(0, orderedQty - remQty);
+        const recPkgLabel = `${pkgU}${recQty > 1 && !pkgU.endsWith('s') ? (pkgU.endsWith('x') ? 'es' : 's') : ''}`;
+        const convRecDesc = conv > 1 ? ` <span style="font-size:11px;font-weight:normal;opacity:0.9;">(= ${(recQty * conv).toLocaleString()} ${baseU}s)</span>` : '';
+
+        return `
+          <div style="background:var(--bg-soft);border-radius:12px;padding:8px 18px;border:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:10px;">
+              <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+                <span style="font-size:70px;font-weight:800;text-transform:uppercase;letter-spacing:0.3px;color:var(--text);line-height:0.95;">${prodTitle}</span>
+                ${sizeDosage ? `<span style="font-size:13px;font-weight:500;color:var(--text-secondary);white-space:nowrap;">- ${sizeDosage}</span>` : ''}
+              </div>
+              <div style="text-align:right;flex-shrink:0;">
+                <div style="font-size:12px;color:var(--text-secondary);">
+                  Ordered: <strong style="color:var(--text);font-weight:700;">${item.quantity}</strong> ${pkgLabel}${convOrderedDesc}
+                </div>
+                <div style="margin-top:4px;">
+                  <span style="font-size:12px;color:var(--text-secondary);margin-right:4px;">Received Today:</span>
+                  <span id="rec_display_${medId}" style="font-size:12.5px;font-weight:700;color:#059669;background:rgba(16,185,129,0.12);padding:3px 9px;border-radius:6px;border:1px solid rgba(16,185,129,0.25);display:inline-block;">
+                    ${recQty} ${recPkgLabel}${convRecDesc}
+                  </span>
+                </div>
+                <input type="hidden" id="rec_input_${medId}" name="received_${medId}" value="${recQty}">
+                <input type="hidden" name="remaining_${medId}" id="rem_hidden_${medId}" value="${remQty}">
+              </div>
+            </div>
+            <div style="background:var(--card-bg);padding:9px 14px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <div>
+                <label style="font-size:11.5px;font-weight:700;color:#d97706;display:block;">
+                  ${pkgU}s to be delivered again:
+                </label>
+                <span style="font-size:11px;color:var(--text-muted);">Remainder will move to a new PO record</span>
+              </div>
+              <input type="number" id="rem_input_${medId}" min="0" max="${item.quantity}" value="${remQty}"
+                style="width:85px;border:1.5px solid #d97706;border-radius:8px;padding:5px 8px;font-size:13px;font-weight:700;text-align:center;background:var(--card-bg);color:var(--text);"
+                oninput="onItemRemainingChange('${medId}', ${item.quantity})" onchange="onItemRemainingChange('${medId}', ${item.quantity})">
+            </div>
+          </div>
+        `;
+      } else if (isReturnReplacement) {
+        const existingRec = document.getElementById(`ret_rec_input_${medId}`);
+        // Default to orderedQty - 1 if not set, or orderedQty if 1
+        const initialRec = existingRec ? (parseInt(existingRec.value, 10) || 0) : Math.max(0, orderedQty - 1);
+        const retQty = Math.max(0, orderedQty - initialRec);
+        const convRetDesc = conv > 1 ? ` (= ${(retQty * conv).toLocaleString()} ${baseU}s)` : '';
+
+        return `
+          <div style="background:var(--bg-soft);border-radius:12px;padding:8px 18px;border:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:10px;">
+              <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+                <span style="font-size:70px;font-weight:800;text-transform:uppercase;letter-spacing:0.3px;color:var(--text);line-height:0.95;">${prodTitle}</span>
+                ${sizeDosage ? `<span style="font-size:13px;font-weight:500;color:var(--text-secondary);white-space:nowrap;">- ${sizeDosage}</span>` : ''}
+              </div>
+              <div style="text-align:right;flex-shrink:0;">
+                <div style="font-size:12px;color:var(--text-secondary);">
+                  Ordered: <strong style="color:var(--text);font-weight:700;">${item.quantity}</strong> ${pkgLabel}${convOrderedDesc}
+                </div>
+                <div style="margin-top:4px;">
+                  <span id="ret_badge_${medId}" style="${retQty > 0 ? 'display:inline-flex;' : 'display:none;'}align-items:center;gap:6px;font-size:12px;font-weight:700;color:#b45309;background:rgba(245,158,11,0.15);padding:3px 9px;border-radius:6px;border:1px solid rgba(245,158,11,0.3);">
+                    <i class="fa-solid fa-arrow-rotate-left"></i> Return to Supplier: <strong>${retQty} ${pkgU}${retQty > 1 && !pkgU.endsWith('s') ? (pkgU.endsWith('x') ? 'es' : 's') : ''}</strong>${convRetDesc}
+                  </span>
+                </div>
+                <input type="hidden" id="rec_input_${medId}" name="received_${medId}" value="${initialRec}">
+                <input type="hidden" id="rem_hidden_${medId}" name="remaining_${medId}" value="${retQty}">
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;background:var(--card-bg);padding:10px 12px;border-radius:8px;border:1px solid var(--border);align-items:center;">
+              <div>
+                <label style="font-size:11.5px;font-weight:700;color:#059669;display:block;margin-bottom:4px;">
+                  Number Received (Good Quality):
+                </label>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <input type="number" id="ret_rec_input_${medId}" min="0" max="${item.quantity}" value="${initialRec}"
+                    style="width:85px;border:1.5px solid #059669;border-radius:8px;padding:5px 8px;font-size:13px;font-weight:700;text-align:center;background:var(--card-bg);color:var(--text);"
+                    oninput="onItemReturnReceivedChange('${medId}', ${item.quantity})" onchange="onItemReturnReceivedChange('${medId}', ${item.quantity})">
+                  <span style="font-size:12px;font-weight:600;color:var(--text-muted);">${pkgU}(s)</span>
+                </div>
+              </div>
+              <div>
+                <label style="font-size:11.5px;font-weight:700;color:#b45309;display:block;margin-bottom:4px;">
+                  Return Reason / Incident:
+                </label>
+                <select name="return_reason_${medId}" class="form-control" style="font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--border);width:100%;">
+                  <option value="Damaged / broken packaging">Damaged packaging</option>
+                  <option value="Defective / leak / contaminated product">Defective / broken quality</option>
+                  <option value="Near expiry date upon arrival">Near expiry on delivery</option>
+                  <option value="Wrong item or specification mismatch">Wrong product delivered</option>
+                  <option value="Unacceptable quality / incident">Other quality defect / incident</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        const convRecDesc = conv > 1 ? ` <span style="font-size:11px;font-weight:normal;opacity:0.9;">(= ${(orderedQty * conv).toLocaleString()} ${baseU}s)</span>` : '';
+        return `
+          <div style="background:var(--bg-soft);border-radius:12px;padding:4px 18px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:16px;">
+            <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;">
+              <span style="font-size:70px;font-weight:800;text-transform:uppercase;letter-spacing:0.3px;color:var(--text);line-height:0.95;">${prodTitle}</span>
+              ${sizeDosage ? `<span style="font-size:13px;font-weight:500;color:var(--text-secondary);white-space:nowrap;">- ${sizeDosage}</span>` : ''}
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-size:12px;color:var(--text-secondary);">
+                Ordered: <strong style="color:var(--text);font-weight:700;">${item.quantity}</strong> ${pkgLabel}${convOrderedDesc}
+              </div>
+              <div style="margin-top:4px;">
+                <span style="font-size:12px;color:var(--text-secondary);margin-right:4px;">Received Today:</span>
+                <span style="font-size:12.5px;font-weight:700;color:#059669;background:rgba(16,185,129,0.12);padding:3px 9px;border-radius:6px;border:1px solid rgba(16,185,129,0.25);display:inline-block;">
+                  ${item.quantity} ${pkgLabel} (Full)${convRecDesc}
+                </span>
+              </div>
+            </div>
+            <input type="hidden" name="remaining_${medId}" id="rem_hidden_${medId}" value="0">
+            <input type="hidden" name="received_${medId}" id="rec_input_${medId}" value="${item.quantity}">
+          </div>
+        `;
+      }
+    }).join('');
+
+    updateRemainderSummary();
+    updateReturnSummary();
+  }
+
+  /* ── Tab 2: Expiry Items Render ── */
+  function renderExpiryItemsInModal() {
+    const container = document.getElementById('expiry-items-container');
+    if (!container) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    container.innerHTML = cachedPOItems.map(item => {
+      const medId = item.medicine_id;
+      const orderedQty = parseInt(item.quantity, 10) || 0;
+      const recQty = getReceivedQty(medId);
+
+      if (!itemExpiryState[medId]) {
+        itemExpiryState[medId] = {
+          mode: 'same',
+          sameDate: '',
+          splits: [
+            { qty: Math.max(1, Math.floor(orderedQty / 2) || 1), date: '' }
+          ]
+        };
+      }
+      const state = itemExpiryState[medId];
+
+      if (recQty <= 0) {
+        return `
+          <div style="background:var(--bg-soft);border-radius:10px;padding:12px 14px;border:1px solid var(--border);color:var(--text-muted);font-size:12px;font-style:italic;">
+            <strong>${item.medicine_name}</strong>: 0 units received today. No expiry dates required.
+          </div>
+        `;
+      }
+
+      return `
+        <div class="po-expiry-item" data-med-id="${medId}" style="background:var(--bg-soft);border-radius:12px;padding:14px 16px;border:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-size:13.5px;font-weight:700;color:var(--text);">${item.medicine_name}</div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin-top:1px;">
+                Received Today: <strong style="color:#059669;">${recQty} units</strong>
+              </div>
+            </div>
+            <div style="display:inline-flex;background:var(--card-bg);padding:3px;border-radius:8px;border:1px solid var(--border);gap:4px;">
+              <label id="pill_same_${medId}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;padding:4px 10px;border-radius:6px;transition:all 0.15s;background:${state.mode === 'same' ? 'rgba(5,150,105,0.12)' : 'transparent'};color:${state.mode === 'same' ? '#059669' : 'var(--text-secondary)'};">
+                <input type="radio" name="expiry_mode_radio_${medId}" value="same" ${state.mode === 'same' ? 'checked' : ''}
+                  onchange="setExpiryMode('${medId}', 'same')" style="accent-color:#059669;cursor:pointer;margin:0;">
+                <span>Same Expiry Date</span>
+              </label>
+              <label id="pill_split_${medId}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;padding:4px 10px;border-radius:6px;transition:all 0.15s;background:${state.mode === 'split' ? 'rgba(5,150,105,0.12)' : 'transparent'};color:${state.mode === 'split' ? '#059669' : 'var(--text-secondary)'};">
+                <input type="radio" name="expiry_mode_radio_${medId}" value="split" ${state.mode === 'split' ? 'checked' : ''}
+                  onchange="setExpiryMode('${medId}', 'split')" style="accent-color:#059669;cursor:pointer;margin:0;">
+                <span>Different Expiry Dates</span>
+              </label>
+            </div>
+          </div>
+          <input type="hidden" name="expiry_mode_${medId}" id="expiry_mode_input_${medId}" value="${state.mode}">
+
+          <!-- Case 1: Same Expiry Date -->
+          <div id="same_expiry_wrap_${medId}" style="display:${state.mode === 'same' ? 'block' : 'none'};">
+            <div style="display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;">
+              <label for="same_expiry_input_${medId}" onclick="const inp=document.getElementById('same_expiry_input_${medId}'); if(inp) { if(inp.showPicker) inp.showPicker(); else inp.focus(); }" style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;display:flex;align-items:center;cursor:pointer;">
+                Expiry Date <span style="color:#dc2626;margin:0 4px 0 2px;">*</span> :
+              </label>
+              <div style="position:relative;display:inline-flex;align-items:center;width:145px;">
+                <input type="date" name="expiry_${medId}" id="same_expiry_input_${medId}"
+                  value="${state.sameDate || ''}"
+                  onchange="onSameExpiryChange('${medId}', this.value)"
+                  onclick="if(this.showPicker) this.showPicker();"
+                  style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:7px 30px 7px 10px;font-size:13px;background:var(--bg-soft);color:var(--text);font-family:inherit;cursor:pointer;box-sizing:border-box;"
+                  min="${todayStr}">
+                <button type="button" onclick="const inp=document.getElementById('same_expiry_input_${medId}'); if(inp) { if(inp.showPicker) inp.showPicker(); else inp.focus(); }"
+                  style="position:absolute;right:8px;background:none;border:none;color:#059669;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;">
+                  <i class="fa-regular fa-calendar-days" style="font-size:13.5px;"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Case 2: Split Expiry Dates -->
+          <div id="split_expiry_wrap_${medId}" style="display:${state.mode === 'split' ? 'block' : 'none'};background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;padding:12px;box-sizing:border-box;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;">
+                <i class="fa-solid fa-layer-group" style="margin-right:4px;color:#059669;"></i> Multiple Expiry Batches
+              </span>
+              <span style="font-size:11px;color:var(--text-secondary);">
+                Total: <strong id="split_total_display_${medId}" style="color:#059669;">${recQty} units</strong>
+              </span>
+            </div>
+            <div id="split_rows_container_${medId}" style="display:flex;flex-direction:column;gap:8px;">
+            </div>
+            <div id="split_status_bar_${medId}" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    cachedPOItems.forEach(item => {
+      const medId = item.medicine_id;
+      if (itemExpiryState[medId] && itemExpiryState[medId].mode === 'split') {
+        renderSplitRows(medId);
+        updateSplitStatusBar(medId);
+      }
+    });
+  }
+
+  function setExpiryMode(medId, mode) {
+    if (!itemExpiryState[medId]) {
+      itemExpiryState[medId] = { mode: mode, sameDate: '', splits: [] };
+    }
+    itemExpiryState[medId].mode = mode;
+    const modeInput = document.getElementById(`expiry_mode_input_${medId}`);
+    if (modeInput) modeInput.value = mode;
+
+    const pillSame = document.getElementById(`pill_same_${medId}`);
+    const pillSplit = document.getElementById(`pill_split_${medId}`);
+    if (pillSame && pillSplit) {
+      if (mode === 'same') {
+        pillSame.style.background = 'rgba(5,150,105,0.12)';
+        pillSame.style.color = '#059669';
+        pillSplit.style.background = 'transparent';
+        pillSplit.style.color = 'var(--text-secondary)';
+      } else {
+        pillSplit.style.background = 'rgba(5,150,105,0.12)';
+        pillSplit.style.color = '#059669';
+        pillSame.style.background = 'transparent';
+        pillSame.style.color = 'var(--text-secondary)';
+      }
+    }
+
+    const sameWrap = document.getElementById(`same_expiry_wrap_${medId}`);
+    const splitWrap = document.getElementById(`split_expiry_wrap_${medId}`);
+
+    if (mode === 'same') {
+      if (sameWrap) sameWrap.style.display = 'block';
+      if (splitWrap) splitWrap.style.display = 'none';
+    } else {
+      if (sameWrap) sameWrap.style.display = 'none';
+      if (splitWrap) splitWrap.style.display = 'block';
+      const recQty = getReceivedQty(medId);
+      if (!itemExpiryState[medId].splits || itemExpiryState[medId].splits.length === 0) {
+        itemExpiryState[medId].splits = [
+          { qty: Math.max(1, Math.floor(recQty / 2) || 1), date: '' }
+        ];
+      }
+      renderSplitRows(medId);
+      updateSplitStatusBar(medId);
+    }
+  }
+
+  function onSameExpiryChange(medId, value) {
+    if (itemExpiryState[medId]) {
+      itemExpiryState[medId].sameDate = value;
+    }
+    updateFinalReceiveButton();
+  }
+
+  function onSplitRowQtyInput(medId, index, value) {
+    const state = itemExpiryState[medId];
+    if (!state || !state.splits || !state.splits[index]) return;
+    const q = parseInt(value, 10);
+    state.splits[index].qty = isNaN(q) ? 0 : q;
+    updateSplitStatusBar(medId);
+    updateFinalReceiveButton();
+  }
+
+  function onSplitRowDateChange(medId, index, value) {
+    const state = itemExpiryState[medId];
+    if (!state || !state.splits || !state.splits[index]) return;
+    state.splits[index].date = value;
+    updateFinalReceiveButton();
+  }
+
+  function addSplitRow(medId) {
+    const state = itemExpiryState[medId];
+    if (!state) return;
+    const recQty = getReceivedQty(medId);
+    const allocated = state.splits.reduce((sum, r) => sum + (parseInt(r.qty, 10) || 0), 0);
+    const remaining = Math.max(1, recQty - allocated);
+    state.splits.push({ qty: remaining, date: '' });
+    renderSplitRows(medId);
+    updateSplitStatusBar(medId);
+  }
+
+  function removeSplitRow(medId, index) {
+    const state = itemExpiryState[medId];
+    if (!state || !state.splits || state.splits.length <= 1) return;
+    state.splits.splice(index, 1);
+    renderSplitRows(medId);
+    updateSplitStatusBar(medId);
+  }
+
+  function renderSplitRows(medId) {
+    const container = document.getElementById(`split_rows_container_${medId}`);
+    if (!container) return;
+    const state = itemExpiryState[medId];
+    if (!state || !state.splits) return;
+    const recQty = getReceivedQty(medId);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    container.innerHTML = state.splits.map((row, idx) => {
+      const canDelete = state.splits.length > 1;
+      return `
+        <div style="display:flex;align-items:flex-end;gap:10px;background:var(--bg-soft);padding:10px 12px;border-radius:8px;border:1px solid var(--border);">
+          <div style="width:110px;flex-shrink:0;">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:3px;">
+              Quantity <span style="color:#dc2626;">*</span>
+            </label>
+            <input type="number" name="split_expiry_qty_${medId}" min="1" max="${recQty}" value="${row.qty || ''}"
+              placeholder="Qty"
+              oninput="onSplitRowQtyInput('${medId}', ${idx}, this.value)"
+              style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px;font-weight:700;text-align:center;background:var(--card-bg);color:var(--text);box-sizing:border-box;">
+          </div>
+          <div style="width:145px;flex-shrink:0;">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:3px;">
+              Expiry Date <span style="color:#dc2626;">*</span>
+            </label>
+            <div style="position:relative;display:flex;align-items:center;">
+              <input type="date" name="split_expiry_date_${medId}" id="split_exp_inp_${medId}_${idx}" value="${row.date || ''}"
+                min="${todayStr}"
+                onchange="onSplitRowDateChange('${medId}', ${idx}, this.value)"
+                onclick="if(this.showPicker) this.showPicker();"
+                style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:6px 28px 6px 10px;font-size:13px;background:var(--card-bg);color:var(--text);font-family:inherit;cursor:pointer;box-sizing:border-box;">
+              <button type="button" onclick="const inp=document.getElementById('split_exp_inp_${medId}_${idx}'); if(inp.showPicker) inp.showPicker(); else inp.focus();"
+                style="position:absolute;right:8px;background:none;border:none;color:#059669;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;">
+                <i class="fa-regular fa-calendar-days" style="font-size:13px;"></i>
+              </button>
+            </div>
+          </div>
+          <div style="flex-shrink:0;">
+            ${canDelete ? `
+              <button type="button" onclick="removeSplitRow('${medId}', ${idx})" title="Remove this batch"
+                style="width:34px;height:34px;border-radius:7px;border:1px solid rgba(220,38,38,0.25);background:rgba(220,38,38,0.08);color:#dc2626;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s;">
+                <i class="fa-solid fa-trash-can" style="font-size:12px;"></i>
+              </button>
+            ` : `
+              <div style="width:34px;height:34px;"></div>
+            `}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function updateSplitStatusBar(medId) {
+    const bar = document.getElementById(`split_status_bar_${medId}`);
+    if (!bar) return;
+    const state = itemExpiryState[medId];
+    if (!state || !state.splits) return;
+    const recQty = getReceivedQty(medId);
+    const allocated = state.splits.reduce((sum, r) => sum + (parseInt(r.qty, 10) || 0), 0);
+    const remaining = recQty - allocated;
+
+    let statusBadge = '';
+    let addButton = '';
+
+    if (allocated === recQty) {
+      statusBadge = `
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#059669;background:rgba(16,185,129,0.12);padding:4px 10px;border-radius:6px;border:1px solid rgba(16,185,129,0.25);">
+          <i class="fa-solid fa-circle-check"></i> All ${recQty} units assigned (${state.splits.length} batch${state.splits.length > 1 ? 'es' : ''})
+        </span>
+      `;
+    } else if (allocated < recQty) {
+      statusBadge = `
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#d97706;background:rgba(217,119,6,0.1);padding:4px 10px;border-radius:6px;border:1px solid rgba(217,119,6,0.25);">
+          <i class="fa-solid fa-clock"></i> Allocated: ${allocated} / ${recQty} (${remaining} unit${remaining > 1 ? 's' : ''} remaining)
+        </span>
+      `;
+      addButton = `
+        <button type="button" onclick="addSplitRow('${medId}')"
+          style="background:rgba(5,150,105,0.08);border:1.5px dashed #059669;color:#059669;padding:5px 12px;border-radius:7px;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;">
+          <i class="fa-solid fa-plus"></i> Add Expiry Date (${remaining} left)
+        </button>
+      `;
+    } else {
+      statusBadge = `
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#dc2626;background:rgba(220,38,38,0.1);padding:4px 10px;border-radius:6px;border:1px solid rgba(220,38,38,0.25);">
+          <i class="fa-solid fa-triangle-exclamation"></i> Over-allocated by ${allocated - recQty} unit${(allocated - recQty) > 1 ? 's' : ''} (${allocated} / ${recQty})
+        </span>
+      `;
+    }
+
+    bar.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;width:100%;">
+        <div>${statusBadge}</div>
+        <div>${addButton}</div>
+      </div>
+    `;
+  }
+
+  /* ── Tab 3: Manufactured Dates Render ── */
+  function renderMfgItemsInModal() {
+    const container = document.getElementById('mfg-items-container');
+    if (!container) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    container.innerHTML = cachedPOItems.map(item => {
+      const medId = item.medicine_id;
+      const orderedQty = parseInt(item.quantity, 10) || 0;
+      const recQty = getReceivedQty(medId);
+
+      if (!itemMfgState[medId]) {
+        itemMfgState[medId] = {
+          mode: 'same',
+          sameDate: '',
+          splits: [
+            { qty: Math.max(1, Math.floor(orderedQty / 2) || 1), date: '' }
+          ]
+        };
+      }
+      const state = itemMfgState[medId];
+
+      if (recQty <= 0) {
+        return `
+          <div style="background:var(--bg-soft);border-radius:10px;padding:12px 14px;border:1px solid var(--border);color:var(--text-muted);font-size:12px;font-style:italic;">
+            <strong>${item.medicine_name}</strong>: 0 units received today. No manufactured dates required.
+          </div>
+        `;
+      }
+
+      return `
+        <div class="po-mfg-item" data-med-id="${medId}" style="background:var(--bg-soft);border-radius:12px;padding:14px 16px;border:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+            <div>
+              <div style="font-size:13.5px;font-weight:700;color:var(--text);">${item.medicine_name}</div>
+              <div style="font-size:11.5px;color:var(--text-muted);margin-top:1px;">
+                Received Today: <strong style="color:#059669;">${recQty} units</strong>
+              </div>
+            </div>
+            <div style="display:inline-flex;background:var(--card-bg);padding:3px;border-radius:8px;border:1px solid var(--border);gap:4px;">
+              <label id="pill_mfg_same_${medId}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;padding:4px 10px;border-radius:6px;transition:all 0.15s;background:${state.mode === 'same' ? 'rgba(59,130,246,0.12)' : 'transparent'};color:${state.mode === 'same' ? '#2563eb' : 'var(--text-secondary)'};">
+                <input type="radio" name="mfg_mode_radio_${medId}" value="same" ${state.mode === 'same' ? 'checked' : ''}
+                  onchange="setMfgMode('${medId}', 'same')" style="accent-color:#2563eb;cursor:pointer;margin:0;">
+                <span>Same Mfg Date</span>
+              </label>
+              <label id="pill_mfg_split_${medId}" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;cursor:pointer;padding:4px 10px;border-radius:6px;transition:all 0.15s;background:${state.mode === 'split' ? 'rgba(59,130,246,0.12)' : 'transparent'};color:${state.mode === 'split' ? '#2563eb' : 'var(--text-secondary)'};">
+                <input type="radio" name="mfg_mode_radio_${medId}" value="split" ${state.mode === 'split' ? 'checked' : ''}
+                  onchange="setMfgMode('${medId}', 'split')" style="accent-color:#2563eb;cursor:pointer;margin:0;">
+                <span>Different Mfg Dates</span>
+              </label>
+            </div>
+          </div>
+          <input type="hidden" name="mfg_mode_${medId}" id="mfg_mode_input_${medId}" value="${state.mode}">
+
+          <!-- Case 1: Same Mfg Date -->
+          <div id="same_mfg_wrap_${medId}" style="display:${state.mode === 'same' ? 'block' : 'none'};">
+            <div style="display:flex;align-items:center;gap:12px;background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;">
+              <label for="same_mfg_input_${medId}" onclick="const inp=document.getElementById('same_mfg_input_${medId}'); if(inp) { if(inp.showPicker) inp.showPicker(); else inp.focus(); }" style="font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;display:flex;align-items:center;cursor:pointer;">
+                Manufactured Date <span style="color:#dc2626;margin:0 4px 0 2px;">*</span> :
+              </label>
+              <div style="position:relative;display:inline-flex;align-items:center;width:145px;">
+                <input type="date" name="mfg_${medId}" id="same_mfg_input_${medId}"
+                  value="${state.sameDate || ''}"
+                  onchange="onSameMfgChange('${medId}', this.value)"
+                  onclick="if(this.showPicker) this.showPicker();"
+                  style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:7px 30px 7px 10px;font-size:13px;background:var(--bg-soft);color:var(--text);font-family:inherit;cursor:pointer;box-sizing:border-box;"
+                  max="${todayStr}">
+                <button type="button" onclick="const inp=document.getElementById('same_mfg_input_${medId}'); if(inp) { if(inp.showPicker) inp.showPicker(); else inp.focus(); }"
+                  style="position:absolute;right:8px;background:none;border:none;color:#2563eb;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;">
+                  <i class="fa-regular fa-calendar-check" style="font-size:13.5px;"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Case 2: Split Mfg Dates -->
+          <div id="split_mfg_wrap_${medId}" style="display:${state.mode === 'split' ? 'block' : 'none'};background:var(--card-bg);border:1.5px solid var(--border);border-radius:10px;padding:12px;box-sizing:border-box;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;">
+                <i class="fa-solid fa-layer-group" style="margin-right:4px;color:#2563eb;"></i> Multiple Manufacturing Batches
+              </span>
+              <span style="font-size:11px;color:var(--text-secondary);">
+                Total: <strong id="split_mfg_total_display_${medId}" style="color:#2563eb;">${recQty} units</strong>
+              </span>
+            </div>
+            <div id="split_mfg_rows_container_${medId}" style="display:flex;flex-direction:column;gap:8px;">
+            </div>
+            <div id="split_mfg_status_bar_${medId}" style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    cachedPOItems.forEach(item => {
+      const medId = item.medicine_id;
+      if (itemMfgState[medId] && itemMfgState[medId].mode === 'split') {
+        renderSplitMfgRows(medId);
+        updateSplitMfgStatusBar(medId);
+      }
+    });
+  }
+
+  function setMfgMode(medId, mode) {
+    if (!itemMfgState[medId]) {
+      itemMfgState[medId] = { mode: mode, sameDate: '', splits: [] };
+    }
+    itemMfgState[medId].mode = mode;
+    const modeInput = document.getElementById(`mfg_mode_input_${medId}`);
+    if (modeInput) modeInput.value = mode;
+
+    const pillSame = document.getElementById(`pill_mfg_same_${medId}`);
+    const pillSplit = document.getElementById(`pill_mfg_split_${medId}`);
+    if (pillSame && pillSplit) {
+      if (mode === 'same') {
+        pillSame.style.background = 'rgba(59,130,246,0.12)';
+        pillSame.style.color = '#2563eb';
+        pillSplit.style.background = 'transparent';
+        pillSplit.style.color = 'var(--text-secondary)';
+      } else {
+        pillSplit.style.background = 'rgba(59,130,246,0.12)';
+        pillSplit.style.color = '#2563eb';
+        pillSame.style.background = 'transparent';
+        pillSame.style.color = 'var(--text-secondary)';
+      }
+    }
+
+    const sameWrap = document.getElementById(`same_mfg_wrap_${medId}`);
+    const splitWrap = document.getElementById(`split_mfg_wrap_${medId}`);
+
+    if (mode === 'same') {
+      if (sameWrap) sameWrap.style.display = 'block';
+      if (splitWrap) splitWrap.style.display = 'none';
+    } else {
+      if (sameWrap) sameWrap.style.display = 'none';
+      if (splitWrap) splitWrap.style.display = 'block';
+      const recQty = getReceivedQty(medId);
+      if (!itemMfgState[medId].splits || itemMfgState[medId].splits.length === 0) {
+        itemMfgState[medId].splits = [
+          { qty: Math.max(1, Math.floor(recQty / 2) || 1), date: '' }
+        ];
+      }
+      renderSplitMfgRows(medId);
+      updateSplitMfgStatusBar(medId);
+    }
+  }
+
+  function onSameMfgChange(medId, value) {
+    if (itemMfgState[medId]) {
+      itemMfgState[medId].sameDate = value;
+    }
+    updateFinalReceiveButton();
+  }
+
+  function onSplitMfgRowQtyInput(medId, index, value) {
+    const state = itemMfgState[medId];
+    if (!state || !state.splits || !state.splits[index]) return;
+    const q = parseInt(value, 10);
+    state.splits[index].qty = isNaN(q) ? 0 : q;
+    updateSplitMfgStatusBar(medId);
+    updateFinalReceiveButton();
+  }
+
+  function onSplitMfgRowDateChange(medId, index, value) {
+    const state = itemMfgState[medId];
+    if (!state || !state.splits || !state.splits[index]) return;
+    state.splits[index].date = value;
+    updateFinalReceiveButton();
+  }
+
+  function addSplitMfgRow(medId) {
+    const state = itemMfgState[medId];
+    if (!state) return;
+    const recQty = getReceivedQty(medId);
+    const allocated = state.splits.reduce((sum, r) => sum + (parseInt(r.qty, 10) || 0), 0);
+    const remaining = Math.max(1, recQty - allocated);
+    state.splits.push({ qty: remaining, date: '' });
+    renderSplitMfgRows(medId);
+    updateSplitMfgStatusBar(medId);
+  }
+
+  function removeSplitMfgRow(medId, index) {
+    const state = itemMfgState[medId];
+    if (!state || !state.splits || state.splits.length <= 1) return;
+    state.splits.splice(index, 1);
+    renderSplitMfgRows(medId);
+    updateSplitMfgStatusBar(medId);
+  }
+
+  function renderSplitMfgRows(medId) {
+    const container = document.getElementById(`split_mfg_rows_container_${medId}`);
+    if (!container) return;
+    const state = itemMfgState[medId];
+    if (!state || !state.splits) return;
+    const recQty = getReceivedQty(medId);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    container.innerHTML = state.splits.map((row, idx) => {
+      const canDelete = state.splits.length > 1;
+      return `
+        <div style="display:flex;align-items:flex-end;gap:10px;background:var(--bg-soft);padding:10px 12px;border-radius:8px;border:1px solid var(--border);">
+          <div style="width:110px;flex-shrink:0;">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:3px;">
+              Quantity <span style="color:#dc2626;">*</span>
+            </label>
+            <input type="number" name="split_mfg_qty_${medId}" min="1" max="${recQty}" value="${row.qty || ''}"
+              placeholder="Qty"
+              oninput="onSplitMfgRowQtyInput('${medId}', ${idx}, this.value)"
+              style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:6px 10px;font-size:13px;font-weight:700;text-align:center;background:var(--card-bg);color:var(--text);box-sizing:border-box;">
+          </div>
+          <div style="width:145px;flex-shrink:0;">
+            <label style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text-muted);display:block;margin-bottom:3px;">
+              Mfg Date <span style="color:#dc2626;">*</span>
+            </label>
+            <div style="position:relative;display:flex;align-items:center;">
+              <input type="date" name="split_mfg_date_${medId}" id="split_mfg_inp_${medId}_${idx}" value="${row.date || ''}"
+                max="${todayStr}"
+                onchange="onSplitMfgRowDateChange('${medId}', ${idx}, this.value)"
+                onclick="if(this.showPicker) this.showPicker();"
+                style="width:100%;border:1.5px solid var(--border);border-radius:7px;padding:6px 28px 6px 10px;font-size:13px;background:var(--card-bg);color:var(--text);font-family:inherit;cursor:pointer;box-sizing:border-box;">
+              <button type="button" onclick="const inp=document.getElementById('split_mfg_inp_${medId}_${idx}'); if(inp) { if(inp.showPicker) inp.showPicker(); else inp.focus(); }"
+                style="position:absolute;right:8px;background:none;border:none;color:#2563eb;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;">
+                <i class="fa-regular fa-calendar-check" style="font-size:13px;"></i>
+              </button>
+            </div>
+          </div>
+          <div style="flex-shrink:0;">
+            ${canDelete ? `
+              <button type="button" onclick="removeSplitMfgRow('${medId}', ${idx})" title="Remove this batch"
+                style="width:34px;height:34px;border-radius:7px;border:1px solid rgba(220,38,38,0.25);background:rgba(220,38,38,0.08);color:#dc2626;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:background .15s;">
+                <i class="fa-solid fa-trash-can" style="font-size:12px;"></i>
+              </button>
+            ` : `
+              <div style="width:34px;height:34px;"></div>
+            `}
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function updateSplitMfgStatusBar(medId) {
+    const bar = document.getElementById(`split_mfg_status_bar_${medId}`);
+    if (!bar) return;
+    const state = itemMfgState[medId];
+    if (!state || !state.splits) return;
+    const recQty = getReceivedQty(medId);
+    const allocated = state.splits.reduce((sum, r) => sum + (parseInt(r.qty, 10) || 0), 0);
+    const remaining = recQty - allocated;
+
+    let statusBadge = '';
+    let addButton = '';
+
+    if (allocated === recQty) {
+      statusBadge = `
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#2563eb;background:rgba(59,130,246,0.12);padding:4px 10px;border-radius:6px;border:1px solid rgba(59,130,246,0.25);">
+          <i class="fa-solid fa-circle-check"></i> All ${recQty} units assigned (${state.splits.length} batch${state.splits.length > 1 ? 'es' : ''})
+        </span>
+      `;
+    } else if (allocated < recQty) {
+      statusBadge = `
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#d97706;background:rgba(217,119,6,0.1);padding:4px 10px;border-radius:6px;border:1px solid rgba(217,119,6,0.25);">
+          <i class="fa-solid fa-clock"></i> Allocated: ${allocated} / ${recQty} (${remaining} unit${remaining > 1 ? 's' : ''} remaining)
+        </span>
+      `;
+      addButton = `
+        <button type="button" onclick="addSplitMfgRow('${medId}')"
+          style="background:rgba(59,130,246,0.08);border:1.5px dashed #2563eb;color:#2563eb;padding:5px 12px;border-radius:7px;font-size:11.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;">
+          <i class="fa-solid fa-plus"></i> Add Mfg Date (${remaining} left)
+        </button>
+      `;
+    } else {
+      statusBadge = `
+        <span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#dc2626;background:rgba(220,38,38,0.1);padding:4px 10px;border-radius:6px;border:1px solid rgba(220,38,38,0.25);">
+          <i class="fa-solid fa-triangle-exclamation"></i> Over-allocated by ${allocated - recQty} unit${(allocated - recQty) > 1 ? 's' : ''} (${allocated} / ${recQty})
+        </span>
+      `;
+    }
+
+    bar.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;width:100%;">
+        <div>${statusBadge}</div>
+        <div>${addButton}</div>
+      </div>
+    `;
+  }
+
+  function validateExpiryForm(e) {
+    const isSkipped = document.getElementById('skip-expiry-input').value === '1';
+    if (isSkipped) {
+      return true;
+    }
+
+    // 1. Validate Expiry Dates
+    for (let i = 0; i < cachedPOItems.length; i++) {
+      const item = cachedPOItems[i];
+      const medId = item.medicine_id;
+      const recQty = getReceivedQty(medId);
+      if (recQty <= 0) continue;
+
+      const state = itemExpiryState[medId] || { mode: 'same' };
+      if (state.mode === 'same') {
+        const sameInput = document.getElementById(`same_expiry_input_${medId}`);
+        if (!sameInput || !sameInput.value) {
+          switchReceiveTab('expiry');
+          alert(`Please select an expiry date for "${item.medicine_name}", or click "Skip Dates (Set Later)".`);
+          if (sameInput) sameInput.focus();
+          if (e) e.preventDefault();
+          return false;
+        }
+      } else {
+        const splits = state.splits || [];
+        if (splits.length === 0) {
+          switchReceiveTab('expiry');
+          alert(`Please provide at least one expiry date batch for "${item.medicine_name}".`);
+          if (e) e.preventDefault();
+          return false;
+        }
+
+        const allocated = splits.reduce((sum, r) => sum + (parseInt(r.qty, 10) || 0), 0);
+        if (allocated < recQty) {
+          switchReceiveTab('expiry');
+          alert(`For "${item.medicine_name}": The received quantity is ${recQty} units, but only ${allocated} units have been assigned expiry dates (${recQty - allocated} units remaining).\n\nPlease continue filling in the expiry dates, or switch to "Same Expiry Date".`);
+          if (e) e.preventDefault();
+          return false;
+        }
+        if (allocated > recQty) {
+          switchReceiveTab('expiry');
+          alert(`For "${item.medicine_name}": Total allocated quantity (${allocated} units) exceeds received quantity (${recQty} units).\n\nPlease adjust the batch quantities.`);
+          if (e) e.preventDefault();
+          return false;
+        }
+
+        for (let s = 0; s < splits.length; s++) {
+          const row = splits[s];
+          if (!row.qty || row.qty <= 0) {
+            switchReceiveTab('expiry');
+            alert(`For "${item.medicine_name}" (Batch ${s + 1}): Quantity must be at least 1 unit.`);
+            if (e) e.preventDefault();
+            return false;
+          }
+          if (!row.date) {
+            switchReceiveTab('expiry');
+            alert(`For "${item.medicine_name}" (Batch ${s + 1}): Please select an expiry date, or click "Skip Dates (Set Later)".`);
+            if (e) e.preventDefault();
+            return false;
+          }
+        }
+      }
+    }
+
+    // 2. Validate Manufactured Dates
+    for (let i = 0; i < cachedPOItems.length; i++) {
+      const item = cachedPOItems[i];
+      const medId = item.medicine_id;
+      const recQty = getReceivedQty(medId);
+      if (recQty <= 0) continue;
+
+      const state = itemMfgState[medId] || { mode: 'same' };
+      if (state.mode === 'same') {
+        const sameInput = document.getElementById(`same_mfg_input_${medId}`);
+        if (!sameInput || !sameInput.value) {
+          switchReceiveTab('mfg');
+          alert(`Please select a manufactured date for "${item.medicine_name}", or click "Skip Dates (Set Later)".`);
+          if (sameInput) sameInput.focus();
+          if (e) e.preventDefault();
+          return false;
+        }
+      } else {
+        const splits = state.splits || [];
+        if (splits.length === 0) {
+          switchReceiveTab('mfg');
+          alert(`Please provide at least one manufactured date batch for "${item.medicine_name}".`);
+          if (e) e.preventDefault();
+          return false;
+        }
+
+        const allocated = splits.reduce((sum, r) => sum + (parseInt(r.qty, 10) || 0), 0);
+        if (allocated < recQty) {
+          switchReceiveTab('mfg');
+          alert(`For "${item.medicine_name}": The received quantity is ${recQty} units, but only ${allocated} units have been assigned manufactured dates (${recQty - allocated} units remaining).\n\nPlease continue filling in the manufactured dates, or switch to "Same Manufactured Date".`);
+          if (e) e.preventDefault();
+          return false;
+        }
+        if (allocated > recQty) {
+          switchReceiveTab('mfg');
+          alert(`For "${item.medicine_name}": Total allocated manufactured quantity (${allocated} units) exceeds received quantity (${recQty} units).\n\nPlease adjust the batch quantities.`);
+          if (e) e.preventDefault();
+          return false;
+        }
+
+        for (let s = 0; s < splits.length; s++) {
+          const row = splits[s];
+          if (!row.qty || row.qty <= 0) {
+            switchReceiveTab('mfg');
+            alert(`For "${item.medicine_name}" (Batch ${s + 1}): Manufactured quantity must be at least 1 unit.`);
+            if (e) e.preventDefault();
+            return false;
+          }
+          if (!row.date) {
+            switchReceiveTab('mfg');
+            alert(`For "${item.medicine_name}" (Batch ${s + 1}): Please select a manufactured date, or click "Skip Dates (Set Later)".`);
+            if (e) e.preventDefault();
+            return false;
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /* ── Expiry / Receive Modal ── */
+  function openExpiryModal(poId) {
+    document.getElementById('expiry-modal-overlay').style.display = 'flex';
+    document.getElementById('expiry-form').action = '/purchase_orders/' + poId + '/receive';
+    document.getElementById('skip-expiry-input').value = '0';
+
+    currentDeliveryStatus = 'complete';
+    const radioComplete = document.querySelector('input[name="delivery_status"][value="complete"]');
+    if (radioComplete) radioComplete.checked = true;
+    const noteEl = document.getElementById('delivery-status-note');
+    if (noteEl) noteEl.textContent = 'Full delivery: all ordered products and quantities are delivered.';
+    const remBadge = document.getElementById('remainder-summary-badge');
+    if (remBadge) remBadge.style.display = 'none';
+    const retBadge = document.getElementById('return-summary-badge');
+    if (retBadge) retBadge.style.display = 'none';
+
+    switchReceiveTab('completeness');
+
+    const containerComp = document.getElementById('completeness-items-container');
+    containerComp.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);"><i class="fa-solid fa-spinner fa-spin"></i> Loading…</div>';
+
+    itemExpiryState = {};
+    itemMfgState = {};
+
+    fetch('/purchase_orders/' + poId + '/items-json')
+      .then(r => r.json())
+      .then(data => {
+        cachedPOItems = data.items || [];
+        cachedPOItems.forEach(item => {
+          const totalQty = parseInt(item.quantity, 10) || 1;
+          itemExpiryState[item.medicine_id] = {
+            mode: 'same',
+            sameDate: '',
+            splits: [
+              { qty: Math.max(1, Math.floor(totalQty / 2) || 1), date: '' }
+            ]
+          };
+          itemMfgState[item.medicine_id] = {
+            mode: 'same',
+            sameDate: '',
+            splits: [
+              { qty: Math.max(1, Math.floor(totalQty / 2) || 1), date: '' }
+            ]
+          };
+        });
+        renderCompletenessItemsInModal();
+        renderExpiryItemsInModal();
+        renderMfgItemsInModal();
+      })
+      .catch(() => {
+        containerComp.innerHTML = '<p style="color:#dc2626;font-size:13px;">Failed to load items. Please try again.</p>';
+      });
+  }
+
+  function closeExpiryModal() {
+    document.getElementById('expiry-modal-overlay').style.display = 'none';
+  }
+
+  function skipExpiry() {
+    document.getElementById('skip-expiry-input').value = '1';
+    document.getElementById('expiry-form').submit();
+  }
+
+  // Close on overlay click
+  document.getElementById('expiry-modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeExpiryModal();
+  });
+
+  // --- Searchable Select Component (Direct typing in main dropdown) ---
+  function makeSearchableSelect(selectEl, opts = {}) {
+    if (!selectEl) return null;
+    if (selectEl.dataset.searchableInit === 'true') {
+      if (selectEl._syncSearchable) selectEl._syncSearchable();
+      return selectEl._searchableWrap;
+    }
+
+    selectEl.dataset.searchableInit = 'true';
+    selectEl.style.display = 'none';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'searchable-select';
+    wrap.setAttribute('data-target-id', selectEl.id || selectEl.name || '');
+    if (selectEl.style.flex) {
+      wrap.style.flex = selectEl.style.flex;
+    }
+
+    const trigger = document.createElement('div');
+    trigger.className = 'searchable-select-trigger';
+
+    const mainInput = document.createElement('input');
+    mainInput.type = 'text';
+    mainInput.className = 'searchable-select-input';
+    mainInput.placeholder = opts.placeholder || 'Select or type to search...';
+    mainInput.autocomplete = 'off';
+    mainInput.spellcheck = false;
+
+    const arrow = document.createElement('i');
+    arrow.className = 'fa-solid fa-chevron-down searchable-select-arrow';
+
+    trigger.appendChild(mainInput);
+    trigger.appendChild(arrow);
+    wrap.appendChild(trigger);
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'searchable-select-dropdown';
+    dropdown.style.display = 'none';
+
+    const optionsContainer = document.createElement('div');
+    optionsContainer.className = 'searchable-select-options';
+    dropdown.appendChild(optionsContainer);
+
+    wrap.appendChild(dropdown);
+    selectEl.parentNode.insertBefore(wrap, selectEl.nextSibling);
+
+    selectEl._searchableWrap = wrap;
+
+    let activeOptionIndex = -1;
+
+    function getSelectedOption() {
+      if (selectEl.selectedIndex >= 0 && selectEl.options[selectEl.selectedIndex]) {
+        return selectEl.options[selectEl.selectedIndex];
+      }
+      return null;
+    }
+
+    function renderOptions() {
+      optionsContainer.innerHTML = '';
+      const currentVal = selectEl.value;
+      let selectedLabel = '';
+
+      mainInput.disabled = Boolean(selectEl.disabled);
+      if (selectEl.disabled) {
+        wrap.classList.add('is-disabled');
+      } else {
+        wrap.classList.remove('is-disabled');
+      }
+
+      Array.from(selectEl.options).forEach(opt => {
+        const item = document.createElement('div');
+        item.className = 'searchable-select-option' + (opt.value === currentVal ? ' is-selected' : '');
+        item.setAttribute('data-value', opt.value);
+        item.textContent = opt.textContent;
+
+        item.addEventListener('mousedown', (e) => e.preventDefault());
+        item.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectOption(opt.value, opt.textContent);
+        });
+
+        if (opt.value === currentVal) selectedLabel = opt.textContent;
+        optionsContainer.appendChild(item);
+      });
+
+      const selOpt = getSelectedOption();
+      if (selOpt && selOpt.value) {
+        selectedLabel = selOpt.textContent;
+      }
+
+      if (currentVal && selectedLabel) {
+        mainInput.value = selectedLabel;
+      } else {
+        mainInput.value = '';
+      }
+    }
+
+    function selectOption(val, text) {
+      selectEl.value = val;
+      mainInput.value = (val ? text : '');
+      wrap.classList.remove('is-invalid');
+
+      optionsContainer.querySelectorAll('.searchable-select-option').forEach(el => {
+        if (el.getAttribute('data-value') === val) {
+          el.classList.add('is-selected');
+        } else {
+          el.classList.remove('is-selected');
+        }
+      });
+
+      closeDropdown();
+      selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+
+    function openDropdown() {
+      if (selectEl.disabled) return;
+      document.querySelectorAll('.searchable-select.is-open').forEach(s => {
+        if (s !== wrap && s._closeDropdown) s._closeDropdown();
+      });
+
+      wrap.classList.add('is-open');
+      dropdown.style.display = 'flex';
+
+      const selOpt = getSelectedOption();
+      if (selOpt && selOpt.value) {
+        mainInput.placeholder = selOpt.textContent;
+      } else {
+        mainInput.placeholder = opts.placeholder || 'Select or type to search...';
+      }
+      mainInput.value = '';
+      filterOptions('');
+
+      const rect = trigger.getBoundingClientRect();
+      let spaceBelow = window.innerHeight - rect.bottom;
+      const modalContent = wrap.closest('.modal-content');
+      if (modalContent) {
+        const modalRect = modalContent.getBoundingClientRect();
+        const spaceBelowInModal = (modalRect.bottom - 45) - rect.bottom;
+        spaceBelow = Math.min(spaceBelow, spaceBelowInModal);
+      }
+      if (spaceBelow < 200 && rect.top > 240) {
+        dropdown.style.top = 'auto';
+        dropdown.style.bottom = 'calc(100% + 4px)';
+      } else {
+        dropdown.style.top = 'calc(100% + 4px)';
+        dropdown.style.bottom = 'auto';
+      }
+    }
+
+    function closeDropdown() {
+      if (!wrap.classList.contains('is-open')) return;
+      wrap.classList.remove('is-open');
+      dropdown.style.display = 'none';
+
+      mainInput.placeholder = opts.placeholder || 'Select or type to search...';
+      const selOpt = getSelectedOption();
+      if (selectEl.value && selOpt) {
+        mainInput.value = selOpt.textContent;
+      } else {
+        mainInput.value = '';
+      }
+      filterOptions('');
+    }
+
+    wrap._closeDropdown = closeDropdown;
+
+    function filterOptions(query) {
+      const q = (query || '').toLowerCase().trim();
+      const allOptions = optionsContainer.querySelectorAll('.searchable-select-option');
+      let matchCount = 0;
+
+      allOptions.forEach(opt => {
+        const matches = !q || opt.textContent.toLowerCase().includes(q);
+        opt.style.display = matches ? 'flex' : 'none';
+        if (matches) matchCount++;
+      });
+
+      let noRes = optionsContainer.querySelector('.searchable-select-no-results');
+      if (matchCount === 0) {
+        if (!noRes) {
+          noRes = document.createElement('div');
+          noRes.className = 'searchable-select-no-results';
+          noRes.textContent = 'No matching options found';
+          optionsContainer.appendChild(noRes);
+        }
+        noRes.style.display = 'block';
+      } else if (noRes) {
+        noRes.style.display = 'none';
+      }
+    }
+
+    mainInput.addEventListener('focus', () => {
+      openDropdown();
+    });
+
+    mainInput.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!wrap.classList.contains('is-open')) openDropdown();
+    });
+
+    mainInput.addEventListener('input', () => {
+      if (!wrap.classList.contains('is-open')) openDropdown();
+      filterOptions(mainInput.value);
+    });
+
+    mainInput.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (!wrap.contains(document.activeElement)) {
+          closeDropdown();
+        }
+      }, 150);
+    });
+
+    mainInput.addEventListener('keydown', (e) => {
+      const visibleOptions = Array.from(optionsContainer.querySelectorAll('.searchable-select-option'))
+        .filter(o => o.style.display !== 'none');
+
+      if (e.key === 'Escape') {
+        closeDropdown();
+        mainInput.blur();
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (!wrap.classList.contains('is-open')) {
+          openDropdown();
+          return;
+        }
+        activeOptionIndex = Math.min(activeOptionIndex + 1, visibleOptions.length - 1);
+        updateOptionFocus(visibleOptions);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (!wrap.classList.contains('is-open')) {
+          openDropdown();
+          return;
+        }
+        activeOptionIndex = Math.max(activeOptionIndex - 1, 0);
+        updateOptionFocus(visibleOptions);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (visibleOptions.length > 0) {
+          const target = (activeOptionIndex >= 0 && visibleOptions[activeOptionIndex])
+            ? visibleOptions[activeOptionIndex]
+            : visibleOptions[0];
+          target.click();
+        }
+      }
+    });
+
+    function updateOptionFocus(visibleOptions) {
+      visibleOptions.forEach((opt, idx) => {
+        if (idx === activeOptionIndex) {
+          opt.classList.add('is-focused');
+          opt.scrollIntoView({ block: 'nearest' });
+        } else {
+          opt.classList.remove('is-focused');
+        }
+      });
+    }
+
+    arrow.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (wrap.classList.contains('is-open')) {
+        closeDropdown();
+      } else {
+        openDropdown();
+        mainInput.focus();
+      }
+    });
+
+    selectEl._syncSearchable = renderOptions;
+    renderOptions();
+    return wrap;
+  }
+
+  // Global listener to close searchable selects on outside click
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.searchable-select')) {
+      document.querySelectorAll('.searchable-select.is-open').forEach(s => {
+        if (s._closeDropdown) s._closeDropdown();
+      });
+    }
+  });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', filterPO);
+    }
+
+    const calContainer = document.getElementById('po-cal-filter');
+    if (calContainer) {
+      poCalFilter = new CalendarFilter(calContainer, () => {
+        filterPO();
+      });
+    }
+
+    // Initialize searchable select for modals (supplier selection)
+    const createSup = document.getElementById('create-po-supplier');
+    if (createSup) makeSearchableSelect(createSup, { placeholder: 'Search supplier...' });
+    const editSup = document.getElementById('edit-po-supplier');
+    if (editSup) makeSearchableSelect(editSup, { placeholder: 'Search supplier...' });
+
+    filterPO();
+  });
+
+  // Toggle truncated supplier name on click
+  function toggleSupplierName(el, event) {
+    if (event) event.stopPropagation();
+    const cell = el.closest('.supplier-expand-cell');
+    if (!cell) return;
+    const popover = cell.querySelector('.supplier-full-popover');
+    if (!popover) return;
+    const isActive = popover.classList.contains('active');
+    // Close any other active supplier popovers
+    document.querySelectorAll('.supplier-full-popover.active').forEach(p => {
+      p.classList.remove('active');
+    });
+    if (!isActive) {
+      popover.classList.add('active');
+    }
+  }
+
+  function closeSupplierPopover(event) {
+    if (event) event.stopPropagation();
+    document.querySelectorAll('.supplier-full-popover.active').forEach(p => {
+      p.classList.remove('active');
+    });
+  }
+
+  // Collapse supplier name popover on click outside
+  document.addEventListener('click', function(e) {
+    if (!e.target.closest('.supplier-expand-cell')) {
+      document.querySelectorAll('.supplier-full-popover.active').forEach(p => {
+        p.classList.remove('active');
+      });
+    }
+  });
+</script>
+
+{% endblock %}
