@@ -1,0 +1,2367 @@
+{% extends 'base.html' %}
+{% block title %}Inventory{% endblock %}
+
+{% block content %}
+<style>
+.btn-pill-add-category {
+    background: #ffffff;
+    border: 1px solid #d5d8dc;
+    color: #4b5563;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    line-height: 1.4;
+    transition: all 0.15s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+    text-decoration: none;
+    user-select: none;
+}
+.btn-pill-add-category:hover {
+    background: #f8fafc;
+    border-color: #94a3b8;
+    color: #1e293b;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+/* Modal Content & Body dropdown overflow fix */
+#add-medicine-modal .modal-content,
+#edit-medicine-modal .modal-content {
+    overflow: visible !important;
+}
+#add-medicine-modal .modal-body,
+#edit-medicine-modal .modal-body {
+    overflow: visible !important;
+}
+
+/* Searchable Select Component */
+.searchable-select {
+    position: relative;
+    width: 100%;
+    user-select: none;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.searchable-select-trigger {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 38px;
+    height: 38px;
+    padding: 0 10px 0 12px;
+    background: var(--surface, #ffffff);
+    border: 1.5px solid var(--border, #cbd5e1);
+    border-radius: var(--radius-md, 8px);
+    cursor: text;
+    transition: all 0.18s ease;
+    box-sizing: border-box;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+}
+
+.searchable-select-trigger:hover {
+    border-color: #94a3b8;
+}
+
+.searchable-select-trigger:focus-within,
+.searchable-select.is-open .searchable-select-trigger {
+    border-color: var(--accent, #c0392b);
+    background: #ffffff;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    outline: none !important;
+}
+
+.searchable-select.is-invalid .searchable-select-trigger {
+    border-color: #ef4444 !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+}
+
+.searchable-select.is-disabled .searchable-select-trigger {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    cursor: not-allowed;
+    opacity: 0.75;
+}
+
+.searchable-select-input {
+    flex: 1;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    background: transparent !important;
+    font-size: 13px;
+    color: var(--text, #1e293b);
+    font-family: inherit;
+    padding: 0;
+    height: 100%;
+    cursor: text;
+    min-width: 0;
+}
+
+.searchable-select-input::placeholder {
+    color: #94a3b8;
+}
+
+.searchable-select-input::selection {
+    background: transparent;
+    color: inherit;
+}
+
+.searchable-select.is-disabled .searchable-select-input {
+    cursor: not-allowed;
+}
+
+.searchable-select-arrow {
+    font-size: 10.5px;
+    color: #64748b;
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+    cursor: pointer;
+    padding: 8px 4px;
+    margin-left: 6px;
+}
+
+.searchable-select.is-open .searchable-select-arrow {
+    transform: rotate(180deg);
+}
+
+/* Dropdown Menu */
+.searchable-select-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    z-index: 2000;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 220px;
+    animation: searchableFadeIn 0.14s ease-out;
+}
+
+@keyframes searchableFadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Options List */
+.searchable-select-options {
+    overflow-y: auto;
+    max-height: 190px;
+    padding: 4px;
+}
+
+.searchable-select-optgroup {
+    margin-bottom: 4px;
+}
+
+.searchable-select-optgroup-label {
+    padding: 6px 8px 3px;
+    font-size: 10px;
+    font-weight: 700;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: #f1f5f9;
+    border-radius: 4px;
+    margin: 3px 0 2px;
+}
+
+.searchable-select-option {
+    padding: 7px 10px;
+    font-size: 12.5px;
+    color: #334155;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.1s ease, color 0.1s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.searchable-select-option:hover,
+.searchable-select-option.is-focused {
+    background: #f1f5f9;
+    color: #0f172a;
+}
+
+.searchable-select-option.is-selected {
+    background: rgba(192, 57, 43, 0.08);
+    color: var(--accent, #c0392b);
+    font-weight: 600;
+}
+
+.searchable-select-option.is-selected::after {
+    content: "✓";
+    font-size: 11.5px;
+    font-weight: bold;
+    color: var(--accent, #c0392b);
+}
+
+.searchable-select-option.is-custom-action {
+    color: var(--accent, #c0392b);
+    font-weight: 600;
+    border-top: 1px dashed #e2e8f0;
+    margin-top: 2px;
+}
+
+.searchable-select-no-results {
+    padding: 12px 10px;
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* Compact mode for variant rows */
+.searchable-select.is-compact {
+    flex: 1;
+}
+
+.searchable-select.is-compact .searchable-select-trigger {
+    min-height: 34px;
+    height: 34px;
+    padding: 0 8px;
+}
+
+.searchable-select.is-compact .searchable-select-input {
+    font-size: 12px;
+}
+
+.searchable-select.is-compact .searchable-select-option {
+    padding: 5px 8px;
+    font-size: 12px;
+}
+
+/* Filter bar inline integration */
+.filter-container .searchable-select {
+    width: auto;
+    display: inline-block;
+}
+
+.filter-container .searchable-select-trigger {
+    border: none !important;
+    background: transparent !important;
+    padding: 2px 6px !important;
+    min-height: auto !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    color: var(--text) !important;
+    box-shadow: none !important;
+    gap: 4px;
+}
+
+.filter-container .searchable-select-trigger:hover {
+    color: var(--accent, #c0392b) !important;
+}
+
+.filter-container .searchable-select-arrow {
+    font-size: 10px;
+    margin-left: 2px;
+}
+
+.filter-container .searchable-select-dropdown {
+    min-width: 190px;
+}
+</style>
+<div class="panel">
+    <div class="panel-header" style="display: flex; flex-direction: column; gap: 16px; align-items: stretch;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Inventory List</h3>
+            <span class="list-count-badge">
+                {{ items | length }} product(s)
+            </span>
+        </div>
+        
+        <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between; width: 100%;">
+            <div class="search-input" style="margin-bottom: 0; max-width: 320px;">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="search-input" placeholder="Search products" maxlength="25" onkeyup="filterTable()" oninput="filterTable()">
+            </div>
+            
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <div class="filter-container">
+                    <i class="fa-solid fa-filter"></i>
+                    <select id="filter-status" class="filter-select" onchange="filterTable()">
+                        <option value="">All Stocks</option>
+                        <option value="Good">Good Stock</option>
+                        <option value="Low Stock">Low Stock</option>
+                        <option value="No Stock">No Stock</option>
+                        <option value="Overstocked">Overstocked</option>
+                    </select>
+                    <span style="color: var(--border-light); font-size: 14px; user-select: none; margin: 0 4px;">|</span>
+                    <select id="filter-category" class="filter-select" onchange="filterTable()">
+                        <option value="">All Categories</option>
+                        {% for cat in items | map(attribute='category') | unique | sort %}
+                            <option value="{{ cat }}">{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if has_permission('inventory_add') %}
+                <button class="btn-primary" style="width: auto; padding: 8px 24px; font-size: 13px; font-weight: 500; border-radius: 20px; text-align: center; display: inline-block; white-space: nowrap;" onclick="openModal()">+ Add Product</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <table id="inventory-table" data-rows-per-page="8" style="width: 100%; table-layout: fixed;">
+        <thead>
+            <tr id="thead-row">
+                <th style="width: {% if app_settings.show_generic != 'false' %}14%{% else %}16%{% endif %}; white-space: nowrap;">SKU</th>
+                <th style="width: {% if app_settings.show_generic != 'false' %}15%{% else %}18%{% endif %}; white-space: nowrap;">Brand</th>
+                {% if app_settings.show_generic != 'false' %}
+                <th style="width: 15%; white-space: nowrap;">Generic Name</th>
+                {% endif %}
+                <th style="width: {% if app_settings.show_generic != 'false' %}14%{% else %}18%{% endif %}; text-align: center; white-space: nowrap;">Category</th>
+                <th style="width: {% if app_settings.show_generic != 'false' %}14%{% else %}17%{% endif %}; text-align: center; white-space: nowrap;">Stock</th>
+                <th style="width: {% if app_settings.show_generic != 'false' %}14%{% else %}17%{% endif %}; text-align: center; white-space: nowrap;">Status</th>
+                <th style="width: 14%; text-align: center; white-space: nowrap;">Action</th>
+            </tr>
+        </thead>
+        <tbody id="tbody-rows">
+            {% for item in items %}
+            <tr data-brand="{{ item.brand | lower }}" data-generic="{{ item.generic | lower }}" data-product="{{ item.product_name | lower }}" data-category="{{ item.category | lower }}" data-status="{% if item.stock == 0 or item.status == 'No Stock' %}No Stock{% else %}{{ item.status }}{% endif %}">
+                <td style="white-space: nowrap; font-weight: 700; color: #1e293b;">{{ item.id }}</td>
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title="Click to view details: {{ item.brand }}"
+                    onclick="openDetailsModal('{{ item.id }}', '{{ item.brand | escape }}', '{{ item.product_name | escape }}', '{{ item.generic | escape }}', '{{ item.category | escape }}', '{{ item.description | escape }}', '{{ item.unit_of_measure | escape }}', '{{ item.purchase_price }}', '{{ item.supplier | escape }}', '{{ item.stock }}', '{{ item.reorder_point }}', '{{ item.base_unit | escape }}', '{{ item.packaging_unit | escape }}', '{{ item.conversion_qty }}')">
+                    <span style="font-weight: 500; color: #1e40af; text-decoration: underline; text-decoration-color: rgba(30,64,175,0.25);">{{ item.brand }}</span>
+                </td>
+                {% if app_settings.show_generic != 'false' %}
+                <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ item.generic or 'N/A' }}">{{ item.generic or 'N/A' }}</td>
+                {% endif %}
+                <td style="text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ item.category }}">{{ item.category }}</td>
+                <td style="text-align: center; font-weight: 600; white-space: nowrap;">{{ "{:,}".format(item.stock) if item.stock is number else item.stock }} {{ item.base_unit or item.unit_of_measure or 'Piece' }}{% if (item.stock > 1 or item.stock == 0) and not (item.base_unit or item.unit_of_measure or '').endswith('s') %}s{% endif %}</td>
+                <td style="text-align: center; white-space: nowrap;">
+                    <span class="status-badge 
+                        {% if item.stock == 0 or item.status == 'No Stock' %}status-no-stock
+                        {% elif item.status == 'Low Stock' %}status-low-stock
+                        {% elif item.stock > item.reorder_point %}status-overstocked
+                        {% elif item.status == 'Good' %}status-good
+                        {% else %}status-near-expiry{% endif %}">
+                        {% if item.stock == 0 or item.status == 'No Stock' %}No Stock
+                        {% elif item.stock > item.reorder_point %}Overstocked ({{ item.stock }}/{{ item.reorder_point }})
+                        {% else %}{{ item.status }}{% endif %}
+                    </span>
+                </td>
+                <td style="text-align: center; white-space: nowrap;">
+                    <!-- View Details -->
+                    <button class="btn-icon-circle btn-view" title="View Product Details"
+                        onclick="openDetailsModal('{{ item.id }}', '{{ item.brand | escape }}', '{{ item.product_name | escape }}', '{{ item.generic | escape }}', '{{ item.category | escape }}', '{{ item.description | escape }}', '{{ item.unit_of_measure | escape }}', '{{ item.purchase_price }}', '{{ item.supplier | escape }}', '{{ item.stock }}', '{{ item.reorder_point }}', '{{ item.base_unit | escape }}', '{{ item.packaging_unit | escape }}', '{{ item.conversion_qty }}')">
+                        <i class="fa-solid fa-eye"></i>
+                    </button>
+                    {% if has_permission('inventory_edit') %}
+                    <!-- Edit -->
+                    <button class="btn-icon-circle btn-edit" title="Edit"
+                        onclick="openEditMedModal('{{ item.id }}', '{{ item.generic | escape }}', '{{ item.brand | escape }}', '{{ item.category | escape }}', '{{ item.reorder_point }}', '{{ item.product_name | escape }}', '{{ item.description | escape }}', '{{ item.unit_of_measure | escape }}', '{{ item.purchase_price }}', '{{ item.supplier | escape }}', '{{ item.base_unit | escape }}', '{{ item.packaging_unit | escape }}', '{{ item.conversion_qty }}')">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    {% endif %}
+                    {% if has_permission('inventory_archive') %}
+                    <!-- Archive -->
+                    <form method="POST" action="{{ url_for('archive_medicine', med_id=item.id) }}" style="display:inline;margin:0;"
+                        onsubmit="return confirmAction(event, 'Archive {{ item.brand | escape }}?')">
+                        <button type="submit" class="btn-icon-circle btn-archive" title="Archive">
+                            <i class="fa-solid fa-box-archive"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Medicine Modal -->
+<div id="add-medicine-modal" class="modal-overlay" onclick="closeModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 600px;">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <div class="modal-header">
+            <h3>Add New Product</h3>
+            <p>Fill in the details to add a new product to inventory.</p>
+        </div>
+        <form action="{{ url_for('inventory') }}" method="POST">
+            <div class="modal-body">
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Supplier</label>
+                        <select class="form-control" id="add-med-supplier" name="supplier" onchange="onSupplierChange('add', this.value)" required>
+                            {% for sup in suppliers %}
+                                <option value="{{ sup.name }}">{{ sup.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="margin: 0;">Category</label>
+                            <button type="button" class="btn-pill-add-category" id="add-new-cat-btn" onclick="toggleNewCategoryMode('add', true)">
+                                + Add Category
+                            </button>
+                        </div>
+                        <select class="form-control" id="add-med-category" name="category" onchange="onCategorySelectChange('add', this)" required>
+                            <!-- Populated dynamically based on selected supplier -->
+                        </select>
+                        <div id="add-new-category-box" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-top: 6px;">
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <input type="text" class="form-control" id="add-new-category-input" name="new_category_input" placeholder="Type new category name..." maxlength="25" style="flex: 1; height: 32px; font-size: 12px; padding: 4px 8px;">
+                                <button type="button" class="btn-pill-add-category" style="height: 32px; padding: 0 14px; background: #ffffff; border-color: #cbd5e1; font-weight: 600;" onclick="saveInlineCategory('add')" title="Add category now">
+                                    + Add
+                                </button>
+                                <button type="button" class="btn-secondary" style="width: auto; padding: 0 10px; height: 32px; font-size: 11.5px; border-radius: 999px;" onclick="toggleNewCategoryMode('add', false)" title="Back to existing categories">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 5px; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-tag" style="color: #94a3b8;"></i> Creating category under: <strong id="add-cat-supplier-name" style="color: #334155;"></strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Product Name</label>
+                        <input type="text" class="form-control" id="add-med-product" placeholder="Product name" name="product_name" maxlength="25" oninput="checkDuplicateProduct()" required>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Brand Name</label>
+                        <input type="text" class="form-control" id="add-med-brand" placeholder="Brand name" name="brand" maxlength="25" oninput="checkDuplicateProduct()" required>
+                    </div>
+                </div>
+
+                <!-- Duplicate Product Notification in Modal -->
+                <div id="dup-product-alert" style="display: none; background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.25); color: #b91c1c; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600; margin-bottom: 16px; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 14px;"></i>
+                    <span>Product "<span id="dup-product-name-span"></span>" already exists in the system!</span>
+                </div>
+
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Generic Name <span style="font-size: 11px; color: var(--text-gray); font-weight: normal;">(Optional)</span></label>
+                        <input type="text" class="form-control" placeholder="Generic name" name="generic" maxlength="25">
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Base Unit <span style="font-size: 11px; color: #059669; font-weight: 600;">(Official Stock Unit)</span></label>
+                        <select class="form-control" name="base_unit" id="add-med-base-unit" onchange="const l=document.getElementById('add-med-unit-legacy'); if(l) l.value=this.value;" required>
+                            <option value="Piece">Piece</option>
+                            <option value="Tablet" selected>Tablet</option>
+                            <option value="Capsule">Capsule</option>
+                            <option value="Bottle">Bottle</option>
+                            <option value="Tube">Tube</option>
+                            <option value="Roll">Roll</option>
+                            <option value="Sachet">Sachet</option>
+                            <option value="Pack">Pack</option>
+                        </select>
+                        <input type="hidden" name="unit_of_measure" id="add-med-unit-legacy" value="Tablet">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Reorder Point</label>
+                        <input type="number" class="form-control" placeholder="Reorder point" name="reorder_point" value="100" min="{{ (app_settings.get('low_stock_threshold', '40') | int) if app_settings else 40 }}" max="2500" oninput="if(this.value > 2500) this.value = 2500; const lowLimit = {{ (app_settings.get('low_stock_threshold', '40') | int) if app_settings else 40 }}; if(parseInt(this.value, 10) < lowLimit) this.setCustomValidity('Reorder Point cannot be less than Low Stock Threshold (' + lowLimit + ' units)'); else this.setCustomValidity('');" required>
+                    </div>
+                </div>
+
+                <!-- Simple Dosage and Size Selector -->
+                <div id="add-variants-wrapper" style="margin-bottom: 16px; display: block;">
+                    <div style="display: flex; background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 8px; padding: 3px; gap: 4px; margin-bottom: 10px;">
+                        <button type="button" class="variant-mode-btn" id="mode-btn-dosage" onclick="setVariantMode('dosage')" style="flex: 1; border: none; background: transparent; padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; color: #64748b; transition: all 0.15s ease; text-align: center;">
+                            Dosage
+                        </button>
+                        <button type="button" class="variant-mode-btn" id="mode-btn-size" onclick="setVariantMode('size')" style="flex: 1; border: none; background: transparent; padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; color: #64748b; transition: all 0.15s ease; text-align: center;">
+                            Size
+                        </button>
+                        <button type="button" class="variant-mode-btn" id="mode-btn-both" onclick="setVariantMode('both')" style="flex: 1; border: none; background: transparent; padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; color: #64748b; transition: all 0.15s ease; text-align: center;">
+                            Both
+                        </button>
+                        <button type="button" class="variant-mode-btn" id="mode-btn-none" onclick="setVariantMode('none')" style="flex: 1; border: none; background: transparent; padding: 7px 12px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; color: #64748b; transition: all 0.15s ease; text-align: center;">
+                            None
+                        </button>
+                    </div>
+
+                    <!-- Rows Container for Dosage / Size / Both -->
+                    <div id="variant-rows-subwrapper" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-size: 11.5px; font-weight: 600; color: #475569;" id="variant-subheading">Select or add product variants:</span>
+                            <button type="button" id="btn-add-variant-row" class="btn-pill-add-category" onclick="addVariantRow()" style="padding: 4px 12px; font-size: 11.5px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                                <i class="fa-solid fa-plus"></i> <span id="btn-add-variant-label">Add Variant</span>
+                            </button>
+                        </div>
+                        <div id="variant-rows-container" style="display: flex; flex-direction: column; gap: 8px;">
+                            <!-- Dynamic rows appended via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <input type="hidden" id="add-variant-type" name="variant_type" value="">
+                <input type="hidden" id="add-baby-care-size" name="baby_size" value="">
+                <input type="hidden" id="add-medicine-dosage" name="med_dosage" value="">
+                <input type="hidden" name="description" value="">
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-cancel" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="modal-btn-save">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Medicine Modal -->
+<div id="edit-medicine-modal" class="modal-overlay" onclick="closeEditMedModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 600px;">
+        <button class="modal-close" onclick="closeEditMedModal()">&times;</button>
+        <div class="modal-header">
+            <h3>Edit Product</h3>
+            <p>Update the product details below.</p>
+        </div>
+        <form action="{{ url_for('edit_medicine') }}" method="POST">
+            <div class="modal-body">
+                <input type="hidden" id="edit-med-id" name="id">
+                
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Supplier</label>
+                        <select class="form-control" id="edit-med-supplier" name="supplier" onchange="onSupplierChange('edit', this.value)" required>
+                            {% for sup in suppliers %}
+                                <option value="{{ sup.name }}">{{ sup.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <label style="margin: 0;">Category</label>
+                            <button type="button" class="btn-pill-add-category" id="edit-new-cat-btn" onclick="toggleNewCategoryMode('edit', true)">
+                                + Add Category
+                            </button>
+                        </div>
+                        <select class="form-control" id="edit-med-category" name="category" onchange="onCategorySelectChange('edit', this)" required>
+                            <!-- Populated dynamically based on selected supplier -->
+                        </select>
+                        <div id="edit-new-category-box" style="display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; margin-top: 6px;">
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <input type="text" class="form-control" id="edit-new-category-input" name="new_category_input" placeholder="Type new category name..." maxlength="25" style="flex: 1; height: 32px; font-size: 12px; padding: 4px 8px;">
+                                <button type="button" class="btn-pill-add-category" style="height: 32px; padding: 0 14px; background: #ffffff; border-color: #cbd5e1; font-weight: 600;" onclick="saveInlineCategory('edit')" title="Add category now">
+                                    + Add
+                                </button>
+                                <button type="button" class="btn-secondary" style="width: auto; padding: 0 10px; height: 32px; font-size: 11.5px; border-radius: 999px;" onclick="toggleNewCategoryMode('edit', false)" title="Back to existing categories">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div style="font-size: 11px; color: #64748b; margin-top: 5px; font-weight: 500; display: flex; align-items: center; gap: 4px;">
+                                <i class="fa-solid fa-tag" style="color: #94a3b8;"></i> Creating category under: <strong id="edit-cat-supplier-name" style="color: #334155;"></strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Product Name</label>
+                        <input type="text" class="form-control" id="edit-med-product" name="product_name" placeholder="Product name" maxlength="25" oninput="checkEditDuplicateProduct()" required>
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Brand Name</label>
+                        <input type="text" class="form-control" id="edit-med-brand" name="brand" placeholder="Brand name" maxlength="25" oninput="checkEditDuplicateProduct()" required>
+                    </div>
+                </div>
+
+                <!-- Duplicate Product Notification in Edit Modal -->
+                <div id="edit-dup-product-alert" style="display: none; background: rgba(220, 38, 38, 0.08); border: 1px solid rgba(220, 38, 38, 0.25); color: #b91c1c; border-radius: 8px; padding: 8px 12px; font-size: 12px; font-weight: 600; margin-bottom: 16px; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 14px;"></i>
+                    <span>Product "<span id="edit-dup-product-name-span"></span>" already exists in the system!</span>
+                </div>
+
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Generic Name <span style="font-size: 11px; color: var(--text-gray); font-weight: normal;">(Optional)</span></label>
+                        <input type="text" class="form-control" id="edit-med-generic" name="generic" placeholder="Generic name" maxlength="25">
+                    </div>
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Base Unit <span style="font-size: 11px; color: #059669; font-weight: 600;">(Official Stock Unit)</span></label>
+                        <select class="form-control" id="edit-med-base-unit" name="base_unit" onchange="const l=document.getElementById('edit-med-unit'); if(l) l.value=this.value;" required>
+                            <option value="Piece">Piece</option>
+                            <option value="Tablet">Tablet</option>
+                            <option value="Capsule">Capsule</option>
+                            <option value="Bottle">Bottle</option>
+                            <option value="Tube">Tube</option>
+                            <option value="Roll">Roll</option>
+                            <option value="Sachet">Sachet</option>
+                            <option value="Pack">Pack</option>
+                        </select>
+                        <input type="hidden" id="edit-med-unit" name="unit_of_measure" value="Piece">
+                    </div>
+                </div>
+
+                <input type="hidden" id="edit-med-price" name="purchase_price">
+                <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                    <div class="form-group" style="flex: 1; margin-bottom: 0;">
+                        <label>Reorder Point</label>
+                        <input type="number" class="form-control" id="edit-med-reorder" name="reorder_point" min="{{ (app_settings.get('low_stock_threshold', '40') | int) if app_settings else 40 }}" max="2500" oninput="if(this.value > 2500) this.value = 2500; const lowLimit = {{ (app_settings.get('low_stock_threshold', '40') | int) if app_settings else 40 }}; if(parseInt(this.value, 10) < lowLimit) this.setCustomValidity('Reorder Point cannot be less than Low Stock Threshold (' + lowLimit + ' units)'); else this.setCustomValidity('');" required>
+                    </div>
+                    <div class="form-group" id="edit-baby-care-size-group" style="flex: 1; margin-bottom: 0; display: none;">
+                        <label>Size</label>
+                        <select class="form-control" id="edit-baby-care-size" name="baby_size" onchange="checkEditDuplicateProduct()">
+                            <option value="">-- Select Size --</option>
+                            <option value="NB">NB</option>
+                            <option value="S">S</option>
+                            <option value="M">M</option>
+                            <option value="L">L</option>
+                            <option value="XL">XL</option>
+                            <option value="XXL">XXL</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="edit-medicine-dosage-group" style="flex: 1; margin-bottom: 0; display: none;">
+                        <label>Dosage</label>
+                        <input type="text" class="form-control" id="edit-medicine-dosage" name="med_dosage" placeholder="e.g. 500mg" maxlength="25" oninput="checkEditDuplicateProduct()">
+                    </div>
+                </div>
+
+                <input type="hidden" id="edit-med-desc" name="description">
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="modal-btn-cancel" onclick="closeEditMedModal()">Cancel</button>
+                <button type="submit" class="modal-btn-save">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    const STANDARD_CATEGORIES = [
+        'Medicines',
+        'Vitamins & Supplements',
+        'Medical Supplies',
+        'First Aid',
+        'Personal Care',
+        'Baby Care',
+        'Medical Devices',
+        'Skin Care',
+        'Eye & Ear Care',
+        'Health & Wellness',
+        'Orthopedic & Mobility Aids'
+    ];
+
+    let supplierCategoriesMap = {{ supplier_categories_map | tojson if supplier_categories_map else '{}' }};
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // --- Searchable Select Component ---
+    function makeSearchableSelect(selectEl, opts = {}) {
+        if (!selectEl) return null;
+        if (selectEl.dataset.searchableInit === 'true') {
+            if (selectEl._syncSearchable) selectEl._syncSearchable();
+            return selectEl._searchableWrap;
+        }
+
+        selectEl.dataset.searchableInit = 'true';
+        selectEl.style.display = 'none';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'searchable-select' + (opts.isCompact ? ' is-compact' : '');
+        wrap.setAttribute('data-target-id', selectEl.id || selectEl.name || '');
+        if (selectEl.style.flex) {
+            wrap.style.flex = selectEl.style.flex;
+        }
+
+        const trigger = document.createElement('div');
+        trigger.className = 'searchable-select-trigger';
+
+        const mainInput = document.createElement('input');
+        mainInput.type = 'text';
+        mainInput.className = 'searchable-select-input';
+        mainInput.placeholder = opts.placeholder || 'Select or type to search...';
+        mainInput.autocomplete = 'off';
+        mainInput.spellcheck = false;
+
+        const arrow = document.createElement('i');
+        arrow.className = 'fa-solid fa-chevron-down searchable-select-arrow';
+
+        trigger.appendChild(mainInput);
+        trigger.appendChild(arrow);
+        wrap.appendChild(trigger);
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'searchable-select-dropdown';
+        dropdown.style.display = 'none';
+
+        const optionsContainer = document.createElement('div');
+        optionsContainer.className = 'searchable-select-options';
+        dropdown.appendChild(optionsContainer);
+
+        wrap.appendChild(dropdown);
+        selectEl.parentNode.insertBefore(wrap, selectEl.nextSibling);
+
+        selectEl._searchableWrap = wrap;
+
+        let activeOptionIndex = -1;
+
+        function getSelectedOption() {
+            if (selectEl.selectedIndex >= 0 && selectEl.options[selectEl.selectedIndex]) {
+                return selectEl.options[selectEl.selectedIndex];
+            }
+            return null;
+        }
+
+        function renderOptions() {
+            optionsContainer.innerHTML = '';
+            const currentVal = selectEl.value;
+            let selectedLabel = '';
+
+            mainInput.disabled = Boolean(selectEl.disabled);
+            if (selectEl.disabled) {
+                wrap.classList.add('is-disabled');
+            } else {
+                wrap.classList.remove('is-disabled');
+            }
+
+            const children = Array.from(selectEl.children);
+            children.forEach(child => {
+                if (child.tagName === 'OPTGROUP') {
+                    const groupDiv = document.createElement('div');
+                    groupDiv.className = 'searchable-select-optgroup';
+
+                    const groupLabel = document.createElement('div');
+                    groupLabel.className = 'searchable-select-optgroup-label';
+                    groupLabel.textContent = child.label;
+                    groupDiv.appendChild(groupLabel);
+
+                    Array.from(child.children).forEach(opt => {
+                        const optEl = createOptionEl(opt, currentVal);
+                        if (opt.value === currentVal) selectedLabel = opt.textContent;
+                        groupDiv.appendChild(optEl);
+                    });
+                    optionsContainer.appendChild(groupDiv);
+                } else if (child.tagName === 'OPTION') {
+                    const optEl = createOptionEl(child, currentVal);
+                    if (child.value === currentVal) selectedLabel = child.textContent;
+                    optionsContainer.appendChild(optEl);
+                }
+            });
+
+            const selOpt = getSelectedOption();
+            if (selOpt && selOpt.value) {
+                selectedLabel = selOpt.textContent;
+            }
+
+            if (currentVal && selectedLabel) {
+                mainInput.value = selectedLabel;
+            } else {
+                mainInput.value = '';
+            }
+        }
+
+        function createOptionEl(opt, currentVal) {
+            const item = document.createElement('div');
+            item.className = 'searchable-select-option' + (opt.value === currentVal ? ' is-selected' : '');
+            item.setAttribute('data-value', opt.value);
+            item.textContent = opt.textContent;
+
+            item.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+            });
+
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectOption(opt.value, opt.textContent);
+            });
+            return item;
+        }
+
+        function selectOption(val, text) {
+            selectEl.value = val;
+            mainInput.value = (val ? text : '');
+            wrap.classList.remove('is-invalid');
+
+            optionsContainer.querySelectorAll('.searchable-select-option').forEach(el => {
+                if (el.getAttribute('data-value') === val) {
+                    el.classList.add('is-selected');
+                } else {
+                    el.classList.remove('is-selected');
+                }
+            });
+
+            closeDropdown();
+            selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        function openDropdown() {
+            if (selectEl.disabled) return;
+            document.querySelectorAll('.searchable-select.is-open').forEach(s => {
+                if (s !== wrap && s._closeDropdown) s._closeDropdown();
+            });
+
+            wrap.classList.add('is-open');
+            dropdown.style.display = 'flex';
+
+            const selOpt = getSelectedOption();
+            if (selOpt && selOpt.value) {
+                mainInput.placeholder = selOpt.textContent;
+            } else {
+                mainInput.placeholder = opts.placeholder || 'Select or type to search...';
+            }
+            mainInput.value = '';
+            filterOptions('');
+
+            // Smart positioning: flip upwards if near bottom
+            const rect = trigger.getBoundingClientRect();
+            let spaceBelow = window.innerHeight - rect.bottom;
+            const modalContent = wrap.closest('.modal-content');
+            if (modalContent) {
+                const modalRect = modalContent.getBoundingClientRect();
+                const spaceBelowInModal = (modalRect.bottom - 45) - rect.bottom;
+                spaceBelow = Math.min(spaceBelow, spaceBelowInModal);
+            }
+            if (spaceBelow < 200 && rect.top > 240) {
+                dropdown.style.top = 'auto';
+                dropdown.style.bottom = 'calc(100% + 4px)';
+            } else {
+                dropdown.style.top = 'calc(100% + 4px)';
+                dropdown.style.bottom = 'auto';
+            }
+        }
+
+        function closeDropdown() {
+            if (!wrap.classList.contains('is-open')) return;
+            wrap.classList.remove('is-open');
+            dropdown.style.display = 'none';
+
+            mainInput.placeholder = opts.placeholder || 'Select or type to search...';
+            // Sync main input text back to selected option
+            const selOpt = getSelectedOption();
+            if (selectEl.value && selOpt) {
+                mainInput.value = selOpt.textContent;
+            } else {
+                mainInput.value = '';
+            }
+            filterOptions('');
+        }
+
+        wrap._closeDropdown = closeDropdown;
+
+        function filterOptions(query) {
+            const q = (query || '').toLowerCase().trim();
+            const allOptions = optionsContainer.querySelectorAll('.searchable-select-option:not(.is-custom-action)');
+            let matchCount = 0;
+
+            allOptions.forEach(opt => {
+                const matches = !q || opt.textContent.toLowerCase().includes(q);
+                opt.style.display = matches ? 'flex' : 'none';
+                if (matches) matchCount++;
+            });
+
+            const groups = optionsContainer.querySelectorAll('.searchable-select-optgroup');
+            groups.forEach(g => {
+                const hasVisible = Array.from(g.querySelectorAll('.searchable-select-option:not(.is-custom-action)'))
+                    .some(o => o.style.display !== 'none');
+                g.style.display = hasVisible ? 'block' : 'none';
+            });
+
+            // Remove previous custom action if exists
+            const prevCustom = optionsContainer.querySelector('.is-custom-action');
+            if (prevCustom) prevCustom.remove();
+
+            // If variant dropdown and user typed custom value
+            const isVariantSelect = selectEl.classList.contains('variant-select') || 
+                                    selectEl.classList.contains('variant-select-dosage') || 
+                                    selectEl.classList.contains('variant-select-size');
+            if (isVariantSelect && q.length > 0) {
+                const customAction = document.createElement('div');
+                customAction.className = 'searchable-select-option is-custom-action';
+                customAction.textContent = `+ Use custom: "${query.trim()}"`;
+                customAction.addEventListener('mousedown', (e) => e.preventDefault());
+                customAction.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectOption('__custom__', `+ Custom: ${query.trim()}`);
+                    const row = selectEl.closest('.variant-input-row');
+                    if (row) {
+                        let customInp = null;
+                        if (selectEl.classList.contains('variant-select-dosage')) {
+                            customInp = row.querySelector('.variant-custom-dosage');
+                        } else if (selectEl.classList.contains('variant-select-size')) {
+                            customInp = row.querySelector('.variant-custom-size');
+                        } else {
+                            customInp = row.querySelector('.variant-custom-input');
+                        }
+                        if (customInp) {
+                            customInp.value = query.trim();
+                            customInp.style.display = 'block';
+                            customInp.focus();
+                        }
+                        checkDuplicateProduct();
+                    }
+                });
+                optionsContainer.appendChild(customAction);
+            }
+
+            let noRes = optionsContainer.querySelector('.searchable-select-no-results');
+            if (matchCount === 0 && (!isVariantSelect || q.length === 0)) {
+                if (!noRes) {
+                    noRes = document.createElement('div');
+                    noRes.className = 'searchable-select-no-results';
+                    noRes.textContent = 'No matching options found';
+                    optionsContainer.appendChild(noRes);
+                }
+                noRes.style.display = 'block';
+            } else if (noRes) {
+                noRes.style.display = 'none';
+            }
+        }
+
+        mainInput.addEventListener('focus', () => {
+            openDropdown();
+        });
+
+        mainInput.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (!wrap.classList.contains('is-open')) {
+                openDropdown();
+            }
+        });
+
+        mainInput.addEventListener('input', () => {
+            if (!wrap.classList.contains('is-open')) {
+                openDropdown();
+            }
+            filterOptions(mainInput.value);
+        });
+
+        mainInput.addEventListener('blur', () => {
+            setTimeout(() => {
+                if (!wrap.contains(document.activeElement)) {
+                    closeDropdown();
+                }
+            }, 150);
+        });
+
+        mainInput.addEventListener('keydown', (e) => {
+            const visibleOptions = Array.from(optionsContainer.querySelectorAll('.searchable-select-option'))
+                .filter(o => o.style.display !== 'none');
+
+            if (e.key === 'Escape') {
+                closeDropdown();
+                mainInput.blur();
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (!wrap.classList.contains('is-open')) {
+                    openDropdown();
+                    return;
+                }
+                activeOptionIndex = Math.min(activeOptionIndex + 1, visibleOptions.length - 1);
+                updateOptionFocus(visibleOptions);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (!wrap.classList.contains('is-open')) {
+                    openDropdown();
+                    return;
+                }
+                activeOptionIndex = Math.max(activeOptionIndex - 1, 0);
+                updateOptionFocus(visibleOptions);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (visibleOptions.length > 0) {
+                    const target = (activeOptionIndex >= 0 && visibleOptions[activeOptionIndex]) 
+                        ? visibleOptions[activeOptionIndex] 
+                        : visibleOptions[0];
+                    target.click();
+                }
+            }
+        });
+
+        function updateOptionFocus(visibleOptions) {
+            visibleOptions.forEach((opt, idx) => {
+                if (idx === activeOptionIndex) {
+                    opt.classList.add('is-focused');
+                    opt.scrollIntoView({ block: 'nearest' });
+                } else {
+                    opt.classList.remove('is-focused');
+                }
+            });
+        }
+
+        arrow.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (wrap.classList.contains('is-open')) {
+                closeDropdown();
+            } else {
+                openDropdown();
+                mainInput.focus();
+            }
+        });
+
+        selectEl._syncSearchable = renderOptions;
+        renderOptions();
+        return wrap;
+    }
+
+    function updateAddConversionPreview() {
+        const baseUnit = document.getElementById('add-med-base-unit')?.value || 'Piece';
+        const legacyUnit = document.getElementById('add-med-unit-legacy');
+        if (legacyUnit) legacyUnit.value = baseUnit;
+    }
+
+    function updateEditConversionPreview() {
+        const baseUnit = document.getElementById('edit-med-base-unit')?.value || 'Piece';
+        const legacyUnit = document.getElementById('edit-med-unit');
+        if (legacyUnit) legacyUnit.value = baseUnit;
+    }
+
+    function initAllSearchableSelects() {
+        // Add modal dropdowns
+        const addSup = document.getElementById('add-med-supplier');
+        if (addSup) makeSearchableSelect(addSup, { placeholder: 'Search supplier...' });
+
+        const addCat = document.getElementById('add-med-category');
+        if (addCat) makeSearchableSelect(addCat, { placeholder: 'Search category...' });
+
+        const addBaseUnit = document.getElementById('add-med-base-unit');
+        if (addBaseUnit) makeSearchableSelect(addBaseUnit, { placeholder: 'Search base unit...' });
+
+        const addPkgUnit = document.getElementById('add-med-pkg-unit');
+        if (addPkgUnit) makeSearchableSelect(addPkgUnit, { placeholder: 'Search packaging unit...' });
+
+        // Edit modal dropdowns
+        const editSup = document.getElementById('edit-med-supplier');
+        if (editSup) makeSearchableSelect(editSup, { placeholder: 'Search supplier...' });
+
+        const editCat = document.getElementById('edit-med-category');
+        if (editCat) makeSearchableSelect(editCat, { placeholder: 'Search category...' });
+
+        const editBaseUnit = document.getElementById('edit-med-base-unit');
+        if (editBaseUnit) makeSearchableSelect(editBaseUnit, { placeholder: 'Search base unit...' });
+
+        const editPkgUnit = document.getElementById('edit-med-pkg-unit');
+        if (editPkgUnit) makeSearchableSelect(editPkgUnit, { placeholder: 'Search packaging unit...' });
+
+        const editSize = document.getElementById('edit-baby-care-size');
+        if (editSize) makeSearchableSelect(editSize, { placeholder: 'Search size...' });
+    }
+
+    // Global listener to close searchable selects on outside click
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.searchable-select')) {
+            document.querySelectorAll('.searchable-select.is-open').forEach(s => {
+                if (s._closeDropdown) s._closeDropdown();
+            });
+        }
+    });
+
+    function updateCategoryOptionsForSupplier(prefix, supplierName, selectedCategory = '') {
+        const catSelect = document.getElementById(`${prefix}-med-category`);
+        if (!catSelect) return;
+        
+        const supplierDisp = document.getElementById(`${prefix}-cat-supplier-name`);
+        if (supplierDisp) supplierDisp.textContent = supplierName || 'Selected Supplier';
+        
+        const supCats = (supplierCategoriesMap[supplierName] || []).slice().sort();
+        let html = '';
+        
+        if (supCats.length > 0) {
+            html += `<optgroup label="Categories under ${escapeHtml(supplierName)} (${supCats.length})">`;
+            supCats.forEach(c => {
+                const isSel = (c === selectedCategory) ? 'selected' : '';
+                html += `<option value="${escapeHtml(c)}" ${isSel}>${escapeHtml(c)}</option>`;
+            });
+            html += `</optgroup>`;
+        }
+        
+        const otherStd = STANDARD_CATEGORIES.filter(c => !supCats.includes(c));
+        if (otherStd.length > 0) {
+            html += `<optgroup label="Standard Categories">`;
+            otherStd.forEach(c => {
+                const isSel = (c === selectedCategory) ? 'selected' : '';
+                html += `<option value="${escapeHtml(c)}" ${isSel}>${escapeHtml(c)}</option>`;
+            });
+            html += `</optgroup>`;
+        }
+        
+        catSelect.innerHTML = html;
+        
+        if (selectedCategory && !supCats.includes(selectedCategory) && !otherStd.includes(selectedCategory)) {
+            const customOpt = document.createElement('option');
+            customOpt.value = selectedCategory;
+            customOpt.textContent = selectedCategory;
+            customOpt.selected = true;
+            catSelect.insertBefore(customOpt, catSelect.firstChild);
+        } else if (!selectedCategory) {
+            if (supCats.length > 0) {
+                catSelect.value = supCats[0];
+            } else if (otherStd.length > 0) {
+                catSelect.value = otherStd[0];
+            }
+        }
+        
+        if (catSelect._syncSearchable) {
+            catSelect._syncSearchable();
+        }
+
+        if (prefix === 'add') {
+            handleCategoryChange(catSelect, 'add-baby-care-size-group', 'add-medicine-dosage-group');
+        } else if (prefix === 'edit') {
+            handleCategoryChange(catSelect, 'edit-baby-care-size-group', 'edit-medicine-dosage-group');
+        }
+    }
+
+    function onSupplierChange(prefix, supplierName) {
+        const supplierDisp = document.getElementById(`${prefix}-cat-supplier-name`);
+        if (supplierDisp) supplierDisp.textContent = supplierName || 'Selected Supplier';
+        
+        const catSelect = document.getElementById(`${prefix}-med-category`);
+        const currentVal = catSelect ? catSelect.value : '';
+        updateCategoryOptionsForSupplier(prefix, supplierName, currentVal);
+
+        const supSelect = document.getElementById(`${prefix}-med-supplier`);
+        if (supSelect && supSelect._syncSearchable) supSelect._syncSearchable();
+    }
+
+    function onCategorySelectChange(prefix, selectEl) {
+        if (selectEl.value === '__create_new__') {
+            toggleNewCategoryMode(prefix, true);
+        } else {
+            if (prefix === 'add') {
+                handleCategoryChange(selectEl, 'add-baby-care-size-group', 'add-medicine-dosage-group');
+            } else if (prefix === 'edit') {
+                handleCategoryChange(selectEl, 'edit-baby-care-size-group', 'edit-medicine-dosage-group');
+            }
+        }
+    }
+
+    function toggleNewCategoryMode(prefix, isNew) {
+        const selectEl = document.getElementById(`${prefix}-med-category`);
+        const boxEl = document.getElementById(`${prefix}-new-category-box`);
+        const inputEl = document.getElementById(`${prefix}-new-category-input`);
+        const supplierSelect = document.getElementById(`${prefix}-med-supplier`);
+        const supplierName = supplierSelect ? supplierSelect.value : '';
+        
+        const supplierDisp = document.getElementById(`${prefix}-cat-supplier-name`);
+        if (supplierDisp) supplierDisp.textContent = supplierName || 'Selected Supplier';
+        
+        if (isNew) {
+            selectEl.style.display = 'none';
+            if (selectEl._searchableWrap) selectEl._searchableWrap.style.display = 'none';
+            selectEl.removeAttribute('required');
+            boxEl.style.display = 'block';
+            inputEl.setAttribute('required', 'required');
+            inputEl.focus();
+        } else {
+            boxEl.style.display = 'none';
+            inputEl.removeAttribute('required');
+            inputEl.value = '';
+            if (selectEl._searchableWrap) {
+                selectEl._searchableWrap.style.display = 'block';
+            } else {
+                selectEl.style.display = 'block';
+            }
+            selectEl.setAttribute('required', 'required');
+            if (selectEl.value === '__create_new__') {
+                selectEl.selectedIndex = 0;
+            }
+            if (selectEl._syncSearchable) selectEl._syncSearchable();
+            if (prefix === 'add') {
+                handleCategoryChange(selectEl, 'add-baby-care-size-group', 'add-medicine-dosage-group');
+            } else if (prefix === 'edit') {
+                handleCategoryChange(selectEl, 'edit-baby-care-size-group', 'edit-medicine-dosage-group');
+            }
+        }
+    }
+
+    async function saveInlineCategory(prefix) {
+        const inputEl = document.getElementById(`${prefix}-new-category-input`);
+        const supplierSelect = document.getElementById(`${prefix}-med-supplier`);
+        const supplierName = supplierSelect ? supplierSelect.value : '';
+        const newCat = (inputEl ? inputEl.value : '').trim();
+        
+        if (!supplierName) {
+            alert('Please select a supplier first.');
+            return;
+        }
+        if (!newCat) {
+            alert('Please enter a category name.');
+            if (inputEl) inputEl.focus();
+            return;
+        }
+        
+        try {
+            const resp = await fetch('/inventory/api/create_category', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ supplier: supplierName, category: newCat })
+            });
+            const res = await resp.json();
+            if (res.success) {
+                if (!supplierCategoriesMap[supplierName]) {
+                    supplierCategoriesMap[supplierName] = [];
+                }
+                if (!supplierCategoriesMap[supplierName].includes(newCat)) {
+                    supplierCategoriesMap[supplierName].push(newCat);
+                }
+                const filterCat = document.getElementById('filter-category');
+                if (filterCat && !Array.from(filterCat.options).some(o => o.value === newCat)) {
+                    const opt = document.createElement('option');
+                    opt.value = newCat;
+                    opt.textContent = newCat;
+                    filterCat.appendChild(opt);
+                }
+                toggleNewCategoryMode(prefix, false);
+                updateCategoryOptionsForSupplier(prefix, supplierName, newCat);
+            } else {
+                alert(res.error || 'Failed to create category');
+            }
+        } catch (err) {
+            console.error(err);
+            if (!supplierCategoriesMap[supplierName]) {
+                supplierCategoriesMap[supplierName] = [];
+            }
+            if (!supplierCategoriesMap[supplierName].includes(newCat)) {
+                supplierCategoriesMap[supplierName].push(newCat);
+            }
+            toggleNewCategoryMode(prefix, false);
+            updateCategoryOptionsForSupplier(prefix, supplierName, newCat);
+        }
+    }
+
+    function openModal() {
+        toggleNewCategoryMode('add', false);
+        const supSelect = document.getElementById('add-med-supplier');
+        if (supSelect && supSelect.options.length > 0) {
+            updateCategoryOptionsForSupplier('add', supSelect.value);
+        }
+        initAllSearchableSelects();
+        const addSup = document.getElementById('add-med-supplier');
+        const addCat = document.getElementById('add-med-category');
+        const addBaseUnit = document.getElementById('add-med-base-unit');
+        if (addSup && addSup._syncSearchable) addSup._syncSearchable();
+        if (addCat && addCat._syncSearchable) addCat._syncSearchable();
+        if (addBaseUnit && addBaseUnit._syncSearchable) addBaseUnit._syncSearchable();
+        updateAddConversionPreview();
+
+        const addCatSelect = document.getElementById('add-med-category');
+        const initialCat = addCatSelect ? addCatSelect.value : '';
+        if (initialCat === 'Medicines' || initialCat === 'Vitamins & Supplements') {
+            initVariantSection('dosage');
+        } else if (initialCat === 'Baby Care' || initialCat === 'Medical Supplies') {
+            initVariantSection('size');
+        } else {
+            initVariantSection('none');
+        }
+        const dupAlert = document.getElementById('dup-product-alert');
+        if (dupAlert) dupAlert.style.display = 'none';
+        const saveBtn = document.querySelector('#add-medicine-modal button[type="submit"]');
+        if (saveBtn) saveBtn.disabled = false;
+        document.getElementById('add-medicine-modal').classList.add('active');
+    }
+    function closeModal() {
+        document.getElementById('add-medicine-modal').classList.remove('active');
+    }
+    function closeModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeModal();
+        }
+    }
+    function openEditMedModal(id, generic, brand, category, reorderPoint, productName, description, unitOfMeasure, purchasePrice, supplier, baseUnit, packagingUnit, conversionQty) {
+        toggleNewCategoryMode('edit', false);
+        document.getElementById('edit-med-id').value = id;
+        document.getElementById('edit-med-generic').value = generic === 'None' ? '' : generic;
+        document.getElementById('edit-med-brand').value = brand;
+        document.getElementById('edit-med-reorder').value = reorderPoint;
+        document.getElementById('edit-med-product').value = productName;
+        document.getElementById('edit-med-desc').value = description;
+        document.getElementById('edit-med-unit').value = baseUnit || unitOfMeasure || 'Piece';
+        document.getElementById('edit-med-price').value = purchasePrice;
+        document.getElementById('edit-med-supplier').value = supplier;
+
+        // Set base unit
+        const baseUnitEl = document.getElementById('edit-med-base-unit');
+        if (baseUnitEl) baseUnitEl.value = baseUnit || unitOfMeasure || 'Piece';
+        
+        updateCategoryOptionsForSupplier('edit', supplier, category);
+        
+        const editDupAlert = document.getElementById('edit-dup-product-alert');
+        if (editDupAlert) editDupAlert.style.display = 'none';
+        const editSaveBtn = document.querySelector('#edit-medicine-modal button[type="submit"]');
+        if (editSaveBtn) editSaveBtn.disabled = false;
+        
+        // Handle Baby Care Size
+        const sizeGroup = document.getElementById('edit-baby-care-size-group');
+        const sizeSelect = document.getElementById('edit-baby-care-size');
+        if (category === 'Baby Care') {
+            sizeGroup.style.display = 'block';
+            sizeSelect.setAttribute('required', 'required');
+            const charObj = parseCharacteristics(description);
+            sizeSelect.value = charObj['Size'] || '';
+        } else {
+            sizeGroup.style.display = 'none';
+            sizeSelect.removeAttribute('required');
+            sizeSelect.value = '';
+        }
+
+        // Handle Medicines Dosage
+        const dosageGroup = document.getElementById('edit-medicine-dosage-group');
+        const dosageInput = document.getElementById('edit-medicine-dosage');
+        if (category === 'Medicines') {
+            dosageGroup.style.display = 'block';
+            dosageInput.setAttribute('required', 'required');
+            const charObj = parseCharacteristics(description);
+            dosageInput.value = charObj['Dosage'] || charObj['Strength'] || '';
+        } else {
+            dosageGroup.style.display = 'none';
+            dosageInput.removeAttribute('required');
+            dosageInput.value = '';
+        }
+
+        initAllSearchableSelects();
+        const editSup = document.getElementById('edit-med-supplier');
+        const editCat = document.getElementById('edit-med-category');
+        const editBase = document.getElementById('edit-med-base-unit');
+        const editPkg = document.getElementById('edit-med-pkg-unit');
+        const editSize = document.getElementById('edit-baby-care-size');
+        if (editSup && editSup._syncSearchable) editSup._syncSearchable();
+        if (editCat && editCat._syncSearchable) editCat._syncSearchable();
+        if (editBase && editBase._syncSearchable) editBase._syncSearchable();
+        if (editPkg && editPkg._syncSearchable) editPkg._syncSearchable();
+        if (editSize && editSize._syncSearchable) editSize._syncSearchable();
+        
+        document.getElementById('edit-medicine-modal').classList.add('active');
+    }
+    function closeEditMedModal() {
+        document.getElementById('edit-medicine-modal').classList.remove('active');
+    }
+    function closeEditMedModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeEditMedModal();
+        }
+    }
+
+    const productsData = [
+        {% for item in items %}
+        {
+            rowid: {{ item.rowid }},
+            id: '{{ item.id | escape }}',
+            brand: '{{ item.brand | escape }}',
+            product_name: '{{ (item.product_name or item.brand) | escape }}',
+            generic: '{{ item.generic | escape }}',
+            category: '{{ item.category | escape }}',
+            description: '{{ item.description | escape }}',
+            unit_of_measure: '{{ item.unit_of_measure | escape }}',
+            base_unit: '{{ (item.base_unit or item.unit_of_measure) | escape }}',
+            packaging_unit: '{{ (item.packaging_unit or "Box") | escape }}',
+            conversion_qty: {{ item.conversion_qty or 1 }},
+            purchase_price: {{ item.purchase_price }},
+            stock: {{ item.stock }},
+            status: '{% if item.stock == 0 or item.status == "No Stock" %}No Stock{% elif item.stock > item.reorder_point %}Overstocked{% else %}{{ item.status }}{% endif %}',
+            reorder_point: {{ item.reorder_point }},
+            supplier: '{{ item.supplier | escape }}'
+        }{% if not loop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    let newlyAddedId = '{{ newly_added_id or "" }}';
+    let isPinnedActive = Boolean(newlyAddedId);
+
+    // Standard dosage and size options for quick dropdown selection
+    const STANDARD_DOSAGE_OPTIONS = [
+        "500mg", "250mg", "100mg", "650mg", "10mg", "20mg", "40mg", "50mg", 
+        "100mg/5mL", "125mg/5mL", "250mg/5mL", "100mg/mL", "500mg/5mL", "1g"
+    ];
+    const STANDARD_SIZE_OPTIONS = [
+        "NB", "S", "M", "L", "XL", "XXL"
+    ];
+
+    let currentVariantType = ''; // 'dosage', 'size', 'both', or 'none'
+
+    function setVariantMode(mode) {
+        currentVariantType = mode || 'none';
+        const wrapper = document.getElementById('add-variants-wrapper');
+        const subwrapper = document.getElementById('variant-rows-subwrapper');
+        const hiddenType = document.getElementById('add-variant-type');
+        const subheadingEl = document.getElementById('variant-subheading');
+        const btnAddLabel = document.getElementById('btn-add-variant-label');
+        const container = document.getElementById('variant-rows-container');
+
+        if (wrapper) wrapper.style.display = 'block';
+        if (hiddenType) hiddenType.value = (mode === 'none') ? '' : mode;
+
+        // Update mode button styles
+        const modes = ['dosage', 'size', 'both', 'none'];
+        modes.forEach(m => {
+            const btn = document.getElementById(`mode-btn-${m}`);
+            if (btn) {
+                if (m === currentVariantType) {
+                    btn.style.background = 'var(--accent, #c0392b)';
+                    btn.style.color = '#ffffff';
+                    btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.15)';
+                } else {
+                    btn.style.background = 'transparent';
+                    btn.style.color = '#64748b';
+                    btn.style.boxShadow = 'none';
+                }
+            }
+        });
+
+        if (currentVariantType === 'none') {
+            if (subwrapper) subwrapper.style.display = 'none';
+            if (container) container.innerHTML = '';
+            checkDuplicateProduct();
+            return;
+        }
+
+        if (subwrapper) subwrapper.style.display = 'block';
+
+        if (currentVariantType === 'dosage') {
+            if (subheadingEl) subheadingEl.textContent = 'Select or add product dosages:';
+            if (btnAddLabel) btnAddLabel.textContent = 'Add Dosage';
+        } else if (currentVariantType === 'size') {
+            if (subheadingEl) subheadingEl.textContent = 'Select or add product sizes:';
+            if (btnAddLabel) btnAddLabel.textContent = 'Add Size';
+        } else if (currentVariantType === 'both') {
+            if (subheadingEl) subheadingEl.textContent = 'Select or add dosage and size:';
+            if (btnAddLabel) btnAddLabel.textContent = 'Add Variant';
+        }
+
+        if (container) {
+            container.innerHTML = '';
+            addVariantRow();
+        }
+        checkDuplicateProduct();
+    }
+
+    function initVariantSection(type) {
+        setVariantMode(type || 'none');
+    }
+
+    function addVariantRow(initialVal1 = '', initialVal2 = '') {
+        const container = document.getElementById('variant-rows-container');
+        if (!container || !currentVariantType || currentVariantType === 'none') return;
+
+        const row = document.createElement('div');
+        row.className = 'variant-input-row';
+        row.setAttribute('data-mode', currentVariantType);
+
+        if (currentVariantType === 'both') {
+            // Both Dosage and Size in each row
+            let dosageOptionsHtml = '<option value="">-- Select Dosage --</option>';
+            let isKnownDosage = false;
+            STANDARD_DOSAGE_OPTIONS.forEach(opt => {
+                const sel = (initialVal1 && opt.toLowerCase() === initialVal1.toLowerCase()) ? 'selected' : '';
+                if (sel) isKnownDosage = true;
+                dosageOptionsHtml += `<option value="${escapeHtml(opt)}" ${sel}>${escapeHtml(opt)}</option>`;
+            });
+            const customDosageSelected = (initialVal1 && !isKnownDosage) ? 'selected' : '';
+            dosageOptionsHtml += `<option value="__custom__" ${customDosageSelected}>+ Custom Dosage...</option>`;
+
+            let sizeOptionsHtml = '<option value="">-- Select Size --</option>';
+            let isKnownSize = false;
+            STANDARD_SIZE_OPTIONS.forEach(opt => {
+                const sel = (initialVal2 && opt.toLowerCase() === initialVal2.toLowerCase()) ? 'selected' : '';
+                if (sel) isKnownSize = true;
+                sizeOptionsHtml += `<option value="${escapeHtml(opt)}" ${sel}>${escapeHtml(opt)}</option>`;
+            });
+            const customSizeSelected = (initialVal2 && !isKnownSize) ? 'selected' : '';
+            sizeOptionsHtml += `<option value="__custom__" ${customSizeSelected}>+ Custom Size...</option>`;
+
+            row.style.cssText = 'display: flex; gap: 10px; align-items: flex-start; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px;';
+            row.innerHTML = `
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 11px; font-weight: 600; color: #475569;">Dosage</span>
+                    <select class="form-control variant-select-dosage" style="width: 100%; height: 34px; font-size: 12px; padding: 4px 8px;" onchange="onBothVariantDropdownChange(this, 'dosage')">
+                        ${dosageOptionsHtml}
+                    </select>
+                    <input type="text" class="form-control variant-custom-dosage" placeholder="e.g. 500mg" maxlength="25" style="width: 100%; height: 32px; font-size: 12px; padding: 4px 8px; display: ${customDosageSelected ? 'block' : 'none'}; margin-top: 2px;" value="${customDosageSelected ? escapeHtml(initialVal1) : ''}" oninput="checkDuplicateProduct()">
+                </div>
+                <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                    <span style="font-size: 11px; font-weight: 600; color: #475569;">Size</span>
+                    <select class="form-control variant-select-size" style="width: 100%; height: 34px; font-size: 12px; padding: 4px 8px;" onchange="onBothVariantDropdownChange(this, 'size')">
+                        ${sizeOptionsHtml}
+                    </select>
+                    <input type="text" class="form-control variant-custom-size" placeholder="e.g. Medium or 100mL" maxlength="25" style="width: 100%; height: 32px; font-size: 12px; padding: 4px 8px; display: ${customSizeSelected ? 'block' : 'none'}; margin-top: 2px;" value="${customSizeSelected ? escapeHtml(initialVal2) : ''}" oninput="checkDuplicateProduct()">
+                </div>
+                <div class="variant-remove-col" style="padding-top: 18px; display: none;">
+                    <button type="button" class="btn-remove-variant" style="padding: 4px 10px; font-size: 11px; font-weight: 500; border-radius: 6px; color: #dc2626; border: 1px solid #fecaca; background: #fff5f5; cursor: pointer; height: 34px; align-items: center; justify-content: center;" title="Remove this variant" onclick="removeVariantRow(this)">
+                        Remove
+                    </button>
+                </div>
+            `;
+        } else {
+            // Single Dosage or Size
+            const isDosage = (currentVariantType === 'dosage');
+            const optionsList = isDosage ? STANDARD_DOSAGE_OPTIONS : STANDARD_SIZE_OPTIONS;
+            const placeholderText = isDosage ? 'e.g. 500mg' : 'e.g. Medium or 100mL';
+
+            row.style.cssText = 'display: flex; gap: 8px; align-items: center; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 10px;';
+
+            let optionsHtml = `<option value="">-- Select ${isDosage ? 'Dosage' : 'Size'} --</option>`;
+            let isKnownVal = false;
+            optionsList.forEach(opt => {
+                const sel = (initialVal1 && opt.toLowerCase() === initialVal1.toLowerCase()) ? 'selected' : '';
+                if (sel) isKnownVal = true;
+                optionsHtml += `<option value="${escapeHtml(opt)}" ${sel}>${escapeHtml(opt)}</option>`;
+            });
+            const customSelected = (initialVal1 && !isKnownVal) ? 'selected' : '';
+            optionsHtml += `<option value="__custom__" ${customSelected}>+ Custom ${isDosage ? 'Dosage' : 'Size'}...</option>`;
+
+            row.innerHTML = `
+                <div style="flex: 1; display: flex; gap: 6px; align-items: center;">
+                    <select class="form-control variant-select" style="flex: 1; height: 34px; font-size: 12px; padding: 4px 8px;" onchange="onVariantDropdownChange(this)">
+                        ${optionsHtml}
+                    </select>
+                    <input type="text" class="form-control variant-custom-input" placeholder="${placeholderText}" maxlength="25" style="flex: 1; height: 34px; font-size: 12px; padding: 4px 8px; display: ${customSelected ? 'block' : 'none'};" value="${customSelected ? escapeHtml(initialVal1) : ''}" oninput="checkDuplicateProduct()">
+                </div>
+                <button type="button" class="btn-remove-variant" style="padding: 4px 10px; font-size: 11px; font-weight: 500; border-radius: 6px; color: #dc2626; border: 1px solid #fecaca; background: #fff5f5; cursor: pointer; height: 34px; display: none; align-items: center; justify-content: center;" title="Remove this variant" onclick="removeVariantRow(this)">
+                    Remove
+                </button>
+            `;
+        }
+
+        container.appendChild(row);
+        row.querySelectorAll('select').forEach(sel => {
+            makeSearchableSelect(sel, { isCompact: true, placeholder: 'Search...' });
+        });
+        updateVariantRowRemoveButtons();
+        checkDuplicateProduct();
+    }
+
+    function updateVariantRowRemoveButtons() {
+        const container = document.getElementById('variant-rows-container');
+        if (!container) return;
+        const rows = container.querySelectorAll('.variant-input-row');
+        rows.forEach((row, idx) => {
+            const removeBtn = row.querySelector('.btn-remove-variant');
+            const removeCol = row.querySelector('.variant-remove-col');
+            const shouldShow = (rows.length > 1 && idx > 0);
+            if (removeBtn) {
+                removeBtn.style.display = shouldShow ? 'inline-flex' : 'none';
+            }
+            if (removeCol) {
+                removeCol.style.display = shouldShow ? 'block' : 'none';
+            }
+        });
+    }
+
+    function removeVariantRow(btn) {
+        const container = document.getElementById('variant-rows-container');
+        const row = btn.closest('.variant-input-row');
+        if (row && container) {
+            const allRows = container.querySelectorAll('.variant-input-row');
+            if (allRows.length <= 1) {
+                // If it's the last row, reset its values instead of removing
+                if (currentVariantType === 'both') {
+                    const selD = row.querySelector('.variant-select-dosage');
+                    const inpD = row.querySelector('.variant-custom-dosage');
+                    const selS = row.querySelector('.variant-select-size');
+                    const inpS = row.querySelector('.variant-custom-size');
+                    if (selD) selD.value = '';
+                    if (inpD) { inpD.value = ''; inpD.style.display = 'none'; }
+                    if (selS) selS.value = '';
+                    if (inpS) { inpS.value = ''; inpS.style.display = 'none'; }
+                } else {
+                    const sel = row.querySelector('.variant-select');
+                    const customInp = row.querySelector('.variant-custom-input');
+                    if (sel) sel.value = '';
+                    if (customInp) {
+                        customInp.value = '';
+                        customInp.style.display = 'none';
+                    }
+                }
+                row.querySelectorAll('select').forEach(s => {
+                    if (s._syncSearchable) s._syncSearchable();
+                });
+            } else {
+                row.remove();
+            }
+            updateVariantRowRemoveButtons();
+            checkDuplicateProduct();
+        }
+    }
+
+    function onVariantDropdownChange(sel) {
+        const row = sel.closest('.variant-input-row');
+        if (!row) return;
+        const customInput = row.querySelector('.variant-custom-input');
+        if (sel.value === '__custom__') {
+            if (customInput) {
+                customInput.style.display = 'block';
+                customInput.focus();
+            }
+        } else {
+            if (customInput) {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
+        }
+        if (sel._syncSearchable) sel._syncSearchable();
+        checkDuplicateProduct();
+    }
+
+    function onBothVariantDropdownChange(sel, field) {
+        const row = sel.closest('.variant-input-row');
+        if (!row) return;
+        const customInput = (field === 'dosage') 
+            ? row.querySelector('.variant-custom-dosage')
+            : row.querySelector('.variant-custom-size');
+        if (sel.value === '__custom__') {
+            if (customInput) {
+                customInput.style.display = 'block';
+                customInput.focus();
+            }
+        } else {
+            if (customInput) {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
+        }
+        if (sel._syncSearchable) sel._syncSearchable();
+        checkDuplicateProduct();
+    }
+
+    function getCollectedVariants() {
+        const container = document.getElementById('variant-rows-container');
+        if (!container || !currentVariantType || currentVariantType === 'none') return [];
+        const rows = container.querySelectorAll('.variant-input-row');
+        const collected = [];
+
+        rows.forEach(r => {
+            if (currentVariantType === 'both') {
+                const dosageSel = r.querySelector('.variant-select-dosage');
+                const dosageCustom = r.querySelector('.variant-custom-dosage');
+                let dVal = '';
+                if (dosageSel && dosageSel.value === '__custom__') {
+                    dVal = (dosageCustom ? dosageCustom.value : '').trim();
+                } else if (dosageSel && dosageSel.value) {
+                    dVal = dosageSel.value.trim();
+                }
+
+                const sizeSel = r.querySelector('.variant-select-size');
+                const sizeCustom = r.querySelector('.variant-custom-size');
+                let sVal = '';
+                if (sizeSel && sizeSel.value === '__custom__') {
+                    sVal = (sizeCustom ? sizeCustom.value : '').trim();
+                } else if (sizeSel && sizeSel.value) {
+                    sVal = sizeSel.value.trim();
+                }
+
+                if (dVal || sVal) {
+                    const combined = `${dVal}|${sVal}`;
+                    if (!collected.some(item => item.toLowerCase() === combined.toLowerCase())) {
+                        collected.push(combined);
+                    }
+                }
+            } else {
+                const sel = r.querySelector('.variant-select');
+                const customInput = r.querySelector('.variant-custom-input');
+                let val = '';
+                if (sel && sel.value === '__custom__') {
+                    val = (customInput ? customInput.value : '').trim();
+                } else if (sel && sel.value) {
+                    val = sel.value.trim();
+                }
+                if (val && !collected.map(v => v.toLowerCase()).includes(val.toLowerCase())) {
+                    collected.push(val);
+                }
+            }
+        });
+        return collected;
+    }
+
+    function checkDuplicateProduct() {
+        const brandInput = document.getElementById('add-med-brand');
+        const prodInput = document.getElementById('add-med-product');
+        const alertBox = document.getElementById('dup-product-alert');
+        const alertSpan = document.getElementById('dup-product-name-span');
+        const saveBtn = document.querySelector('#add-medicine-modal button[type="submit"]');
+
+        const brandVal = (brandInput ? brandInput.value.trim().toLowerCase() : '');
+        const prodVal = (prodInput ? prodInput.value.trim().toLowerCase() : '') || brandVal;
+
+        if (!brandVal) {
+            if (alertBox) alertBox.style.display = 'none';
+            if (saveBtn) saveBtn.disabled = false;
+            return;
+        }
+
+        const variants = getCollectedVariants();
+
+        // Helper to check a single variant value against productsData
+        function findDuplicateInCatalog(vVal) {
+            return productsData.find(p => {
+                const pBrand = (p.brand || '').toLowerCase().trim();
+                const pProd = (p.product_name || p.brand || '').toLowerCase().trim();
+                const pChar = parseCharacteristics(p.description);
+                let pDosage = (pChar['Dosage'] || pChar['Strength'] || '').toLowerCase().trim();
+                let pSize = (pChar['Size'] || '').toLowerCase().trim();
+
+                if (!pDosage) {
+                    const mDosage = pProd.match(/\b\d+(?:\.\d+)?\s*(?:mg\/5ml|mg\/ml|mcg|mg|g|ml|iu)\b/i);
+                    if (mDosage) pDosage = mDosage[0].replace(/\s+/g, '').toLowerCase();
+                }
+                if (!pSize) {
+                    const mParen = pProd.match(/\(([^)]+)\)/);
+                    if (mParen) {
+                        pSize = mParen[1].replace(/\s+/g, '').toLowerCase();
+                    } else {
+                        const mSize = pProd.match(/\b(?:size[:\s]*)?(nb|s|m|l|xl|xxl|small|medium|large)\b/i);
+                        if (mSize) pSize = mSize[0].toLowerCase();
+                    }
+                }
+
+                // Check brand match
+                const isBrandMatch = (pBrand === brandVal || pBrand === prodVal || pProd === brandVal);
+                if (!isBrandMatch) return false;
+
+                let targetDosage = '';
+                let targetSize = '';
+
+                if (currentVariantType === 'both') {
+                    const parts = (vVal || '').split('|');
+                    targetDosage = (parts[0] || '').toLowerCase().trim();
+                    targetSize = (parts[1] || '').toLowerCase().trim();
+                } else if (currentVariantType === 'dosage') {
+                    targetDosage = (vVal || '').toLowerCase().trim();
+                } else if (currentVariantType === 'size') {
+                    targetSize = (vVal || '').toLowerCase().trim();
+                }
+
+                // Compare dosage
+                if (targetDosage !== pDosage) return false;
+
+                // Compare size
+                if (targetSize !== pSize) return false;
+
+                return true;
+            });
+        }
+
+        let dup = null;
+        if (variants.length > 0) {
+            for (const v of variants) {
+                dup = findDuplicateInCatalog(v);
+                if (dup) break;
+            }
+        } else {
+            dup = findDuplicateInCatalog('');
+        }
+
+        if (dup) {
+            const dupName = dup.product_name || dup.brand;
+            if (alertSpan) alertSpan.textContent = dupName + ` (SKU: ${dup.id})`;
+            if (alertBox) alertBox.style.display = 'flex';
+            if (saveBtn) saveBtn.disabled = true;
+        } else {
+            if (alertBox) alertBox.style.display = 'none';
+            if (saveBtn) saveBtn.disabled = false;
+        }
+    }
+
+    function checkEditDuplicateProduct() {
+        const idInput = document.getElementById('edit-med-id');
+        const curId = idInput ? idInput.value : '';
+        const brandInput = document.getElementById('edit-med-brand');
+        const prodInput = document.getElementById('edit-med-product');
+        const alertBox = document.getElementById('edit-dup-product-alert');
+        const alertSpan = document.getElementById('edit-dup-product-name-span');
+        const saveBtn = document.querySelector('#edit-medicine-modal button[type="submit"]');
+
+        const brandVal = (brandInput ? brandInput.value.trim().toLowerCase() : '');
+        const prodVal = (prodInput ? prodInput.value.trim().toLowerCase() : '') || brandVal;
+
+        if (!brandVal) {
+            if (alertBox) alertBox.style.display = 'none';
+            if (saveBtn) saveBtn.disabled = false;
+            return;
+        }
+
+        const editCat = document.getElementById('edit-med-category')?.value;
+        const editSize = (document.getElementById('edit-baby-care-size')?.value || '').toLowerCase().trim();
+        const editDosage = (document.getElementById('edit-medicine-dosage')?.value || '').toLowerCase().trim();
+
+        const dup = productsData.find(p => {
+            if (p.id === curId) return false;
+            const pBrand = (p.brand || '').toLowerCase().trim();
+            const pProd = (p.product_name || p.brand || '').toLowerCase().trim();
+            const pChar = parseCharacteristics(p.description);
+            const pDosage = (pChar['Dosage'] || pChar['Strength'] || '').toLowerCase().trim();
+            const pSize = (pChar['Size'] || '').toLowerCase().trim();
+
+            const isBrandMatch = (pBrand === brandVal || pBrand === prodVal || pProd === brandVal);
+            if (!isBrandMatch) return false;
+
+            if (editCat === 'Baby Care') {
+                if (editSize && pSize) return editSize === pSize;
+                return !editSize && !pSize;
+            }
+            if (editCat === 'Medicines' || editDosage) {
+                if (editDosage && pDosage) return editDosage === pDosage;
+                return !editDosage && !pDosage;
+            }
+
+            return (pProd === prodVal || pBrand === brandVal);
+        });
+
+        if (dup) {
+            const dupName = dup.product_name || dup.brand;
+            if (alertSpan) alertSpan.textContent = dupName + ` (SKU: ${dup.id})`;
+            if (alertBox) alertBox.style.display = 'flex';
+            if (saveBtn) saveBtn.disabled = true;
+        } else {
+            if (alertBox) alertBox.style.display = 'none';
+            if (saveBtn) saveBtn.disabled = false;
+        }
+    }
+
+    function parseCharacteristics(descStr) {
+        const obj = {};
+        if (!descStr) return obj;
+        const pairs = descStr.split(',');
+        pairs.forEach(p => {
+            const parts = p.split(':');
+            if (parts.length >= 2) {
+                const key = parts[0].trim();
+                const val = parts.slice(1).join(':').trim();
+                obj[key] = val;
+            }
+        });
+        return obj;
+    }
+
+    function formatSizeAbbreviation(val) {
+        if (!val) return '-';
+        const lower = val.trim().toLowerCase();
+        if (lower === 'small' || lower === 's') return 'S';
+        if (lower === 'medium' || lower === 'm') return 'M';
+        if (lower === 'large' || lower === 'l') return 'L';
+        if (lower === 'extra large' || lower === 'xl') return 'XL';
+        return val;
+    }
+
+    const showGeneric = '{{ app_settings.show_generic }}' !== 'false';
+    const userRole    = '{{ session.get("role", "") }}';
+    const canEditMed  = {{ 'true' if has_permission('inventory_edit') else 'false' }};
+    const canArchiveMed = {{ 'true' if has_permission('inventory_archive') else 'false' }};
+    const canDeleteMed  = {{ 'true' if has_permission('inventory_delete') else 'false' }};
+
+    function filterTable(targetPage) {
+        const searchInput = document.getElementById('search-input');
+        const search = (searchInput ? searchInput.value : '').toLowerCase().trim();
+        const status = (document.getElementById('filter-status') ? document.getElementById('filter-status').value : '');
+        const categoryVal = (document.getElementById('filter-category') ? document.getElementById('filter-category').value : '');
+        const category = categoryVal.toLowerCase();
+
+        // If user used search, status, or category, dismiss pinned state!
+        if (isPinnedActive && (search || status || categoryVal)) {
+            isPinnedActive = false;
+            newlyAddedId = '';
+        }
+
+        // Prepare items list:
+        // If pinned is active, place the newly added product at index 0, followed by the rest chronologically
+        // If not pinned, pure chronological order by rowid is used!
+        let listToDisplay;
+        if (isPinnedActive && newlyAddedId) {
+            const pinnedItem = productsData.find(p => p.id === newlyAddedId);
+            const otherItems = productsData.filter(p => p.id !== newlyAddedId).sort((a, b) => a.rowid - b.rowid);
+            listToDisplay = pinnedItem ? [pinnedItem, ...otherItems] : productsData.slice().sort((a, b) => a.rowid - b.rowid);
+        } else {
+            listToDisplay = productsData.slice().sort((a, b) => a.rowid - b.rowid);
+        }
+
+        // 1. Filter products list
+        const filteredProducts = listToDisplay.filter(p => {
+            const matchesSearch = p.brand.toLowerCase().includes(search) || 
+                                  (p.product_name && p.product_name.toLowerCase().includes(search)) ||
+                                  p.generic.toLowerCase().includes(search) || 
+                                  (p.description && p.description.toLowerCase().includes(search)) ||
+                                  p.id.toLowerCase().includes(search);
+            const matchesStatus = !status || p.status === status;
+            const matchesCategory = !categoryVal || p.category.toLowerCase() === category;
+            return matchesSearch && matchesStatus && matchesCategory;
+        });
+
+        // 2. Category-specific characteristics columns
+        let charKeys = [];
+        if (categoryVal === 'Baby Care' || categoryVal === 'Medical Supplies') {
+            charKeys = ['Size'];
+        } else if (categoryVal === 'Medicines' || categoryVal === 'Vitamins & Supplements') {
+            charKeys = ['Dosage'];
+        }
+
+        // 3. Reconstruct Thead
+        const theadRow = document.getElementById('thead-row');
+        let theadHtml = `
+            <th style="width: ${showGeneric ? (charKeys.length ? '12%' : '14%') : (charKeys.length ? '13%' : '16%')}; white-space: nowrap;">SKU</th>
+            <th style="width: ${showGeneric ? (charKeys.length ? '14%' : '15%') : (charKeys.length ? '16%' : '18%')}; white-space: nowrap;">Brand</th>
+        `;
+        if (showGeneric) {
+            theadHtml += `<th style="width: ${charKeys.length ? '14%' : '15%'}; white-space: nowrap;">Generic Name</th>`;
+        }
+        theadHtml += `<th style="width: ${showGeneric ? (charKeys.length ? '13%' : '14%') : (charKeys.length ? '15%' : '18%')}; text-align: center; white-space: nowrap;">Category</th>`;
+        
+        charKeys.forEach(k => {
+            theadHtml += `<th style="width: 12%; text-align: center; white-space: nowrap;">${k}</th>`;
+        });
+
+        theadHtml += `
+            <th style="width: ${showGeneric ? (charKeys.length ? '12%' : '14%') : (charKeys.length ? '14%' : '17%')}; text-align: center; white-space: nowrap;">Stock</th>
+            <th style="width: ${showGeneric ? (charKeys.length ? '13%' : '14%') : (charKeys.length ? '14%' : '17%')}; text-align: center; white-space: nowrap;">Status</th>
+            <th style="width: ${charKeys.length ? '12%' : '14%'}; text-align: center; white-space: nowrap;">Action</th>
+        `;
+        theadRow.innerHTML = theadHtml;
+
+        // 4. Reconstruct Tbody
+        const tbody = document.getElementById('tbody-rows');
+        if (filteredProducts.length === 0) {
+            const totalCols = 6 + (showGeneric ? 1 : 0) + charKeys.length;
+            tbody.innerHTML = `<tr><td colspan="${totalCols}" class="empty-state" style="text-align: center; padding: 24px; color: var(--text-gray);">No products found.</td></tr>`;
+            return;
+        }
+
+        let tbodyHtml = '';
+        filteredProducts.forEach(p => {
+            const charObj = parseCharacteristics(p.description);
+            let charTds = '';
+            charKeys.forEach(k => {
+                let val = charObj[k] || '-';
+                if (k === 'Size') {
+                    val = formatSizeAbbreviation(val);
+                } else if (k === 'Dosage') {
+                    val = charObj['Dosage'] || charObj['Strength'] || '-';
+                }
+                charTds += `<td style="font-size: 11px; font-weight: 500; color: var(--text-dark); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${val}">${val}</td>`;
+            });
+
+            const brandEsc = p.brand.replace(/'/g, "\\'");
+            const prodNameEsc = (p.product_name || p.brand).replace(/'/g, "\\'");
+            const genericEsc = p.generic.replace(/'/g, "\\'");
+            const catEsc = p.category.replace(/'/g, "\\'");
+            const descEsc = p.description.replace(/'/g, "\\'");
+            const unitEsc = p.unit_of_measure.replace(/'/g, "\\'");
+            const baseUnitEsc = (p.base_unit || p.unit_of_measure || 'Piece').replace(/'/g, "\\'");
+            const pkgUnitEsc = (p.packaging_unit || 'Box').replace(/'/g, "\\'");
+            const convQty = p.conversion_qty || 1;
+            const supplierEsc = p.supplier.replace(/'/g, "\\'");
+
+            let statusClass = 'status-good';
+            let statusText = p.status;
+            if (p.stock == 0 || p.status === 'No Stock') {
+                statusClass = 'status-no-stock';
+                statusText = 'No Stock';
+            } else if (p.status === 'Low Stock') {
+                statusClass = 'status-low-stock';
+                statusText = 'Low Stock';
+            } else if (p.reorder_point !== undefined && p.stock > p.reorder_point) {
+                statusClass = 'status-overstocked';
+                statusText = `Overstocked (${p.stock}/${p.reorder_point})`;
+            }
+
+            const isPinnedRow = isPinnedActive && (p.id === newlyAddedId);
+            const rowHighlight = isPinnedRow ? 'style="background: rgba(16, 185, 129, 0.05);"' : '';
+            const newBadgeHtml = isPinnedRow ? '<span style="background: rgba(16, 185, 129, 0.15); color: #059669; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 4px; margin-left: 6px;">New</span>' : '';
+            const baseUnitDisplay = `${baseUnitEsc}${p.stock !== 1 && !baseUnitEsc.endsWith('s') ? 's' : ''}`;
+
+            tbodyHtml += `
+                <tr ${rowHighlight}>
+                    <td style="white-space: nowrap; font-weight: 700; color: #1e293b;">${p.id}${newBadgeHtml}</td>
+                    <td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;" title="Click to view details: ${p.brand}"
+                        onclick="openDetailsModal('${p.id}', '${brandEsc}', '${prodNameEsc}', '${genericEsc}', '${catEsc}', '${descEsc}', '${unitEsc}', '${p.purchase_price}', '${supplierEsc}', '${p.stock}', '${p.reorder_point}', '${baseUnitEsc}', '${pkgUnitEsc}', ${convQty})">
+                        <span style="font-weight: 500; color: #1e40af; text-decoration: underline; text-decoration-color: rgba(30,64,175,0.25);">${p.brand}</span>
+                    </td>
+            `;
+            if (showGeneric) {
+                tbodyHtml += `<td style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.generic || 'N/A'}">${p.generic || 'N/A'}</td>`;
+            }
+            tbodyHtml += `<td style="text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${p.category}">${p.category}</td>`;
+            tbodyHtml += charTds;
+            tbodyHtml += `
+                    <td style="text-align: center; font-weight: 600; white-space: nowrap;">${p.stock.toLocaleString()} ${baseUnitDisplay}</td>
+                    <td style="text-align: center; white-space: nowrap;">
+                        <span class="status-badge ${statusClass}">${statusText}</span>
+                    </td>
+                    <td style="text-align: center; white-space: nowrap;">
+                        <!-- View Details -->
+                        <button class="btn-icon-circle btn-view" title="View Product Details"
+                            onclick="openDetailsModal('${p.id}', '${brandEsc}', '${prodNameEsc}', '${genericEsc}', '${catEsc}', '${descEsc}', '${unitEsc}', '${p.purchase_price}', '${supplierEsc}', '${p.stock}', '${p.reorder_point}', '${baseUnitEsc}', '${pkgUnitEsc}', ${convQty})">
+                            <i class="fa-solid fa-eye"></i>
+                        </button>
+                        ${canEditMed ? `
+                        <button class="btn-icon-circle btn-edit" title="Edit" onclick="openEditMedModal('${p.id}', '${genericEsc}', '${brandEsc}', '${catEsc}', '${p.reorder_point}', '${prodNameEsc}', '${descEsc}', '${unitEsc}', '${p.purchase_price}', '${supplierEsc}', '${baseUnitEsc}', '${pkgUnitEsc}', ${convQty})">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>` : ''}
+                        ${canArchiveMed ? `
+                        <form method="POST" action="/inventory/archive/${p.id}" style="display:inline;margin:0;"
+                            onsubmit="return confirmAction(event, 'Archive ${brandEsc}?')">
+                            <button type="submit" class="btn-icon-circle btn-archive" title="Archive">
+                                <i class="fa-solid fa-box-archive"></i>
+                            </button>
+                        </form>` : ''}
+                    </td>
+                </tr>
+            `;
+        });
+        tbody.innerHTML = tbodyHtml;
+        const table = document.getElementById('inventory-table') || document.querySelector('table');
+        if (table) {
+            if (targetPage !== undefined) {
+                table.dataset.currentPage = targetPage;
+            } else if (isPinnedActive) {
+                table.dataset.currentPage = 1;
+            }
+            if (table.rePaginate) {
+                table.rePaginate();
+            } else if (window.paginateTable) {
+                paginateTable(table, 8);
+            }
+        }
+    }
+
+    function dismissPinnedProduct(targetPage) {
+        if (isPinnedActive) {
+            isPinnedActive = false;
+            newlyAddedId = '';
+            filterTable(targetPage);
+        }
+    }
+
+    // Intercept changeTablePage so clicking pagination dismisses pinned state and places product chronologically
+    const origChangeTablePage = window.changeTablePage;
+    window.changeTablePage = function(tableId, targetPage) {
+        if (isPinnedActive) {
+            isPinnedActive = false;
+            newlyAddedId = '';
+            filterTable(targetPage);
+            return;
+        }
+        if (origChangeTablePage) {
+            origChangeTablePage(tableId, targetPage);
+        }
+    };
+
+    // Also catch direct clicks on pagination buttons or container
+    document.addEventListener('click', function(e) {
+        if (isPinnedActive && (e.target.closest('.pagination-container') || e.target.closest('.pagination-btn'))) {
+            isPinnedActive = false;
+            newlyAddedId = '';
+            setTimeout(() => { filterTable(); }, 10);
+        }
+    });
+
+    // Initialize rendering on load and wire other feature listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        filterTable();
+
+        const searchInputEl = document.getElementById('search-input');
+        if (searchInputEl) {
+            searchInputEl.addEventListener('input', () => {
+                if (isPinnedActive && searchInputEl.value.trim().length > 0) dismissPinnedProduct();
+            });
+            searchInputEl.addEventListener('focus', () => {
+                if (isPinnedActive && searchInputEl.value.trim().length > 0) dismissPinnedProduct();
+            });
+        }
+
+        const filterStatusEl = document.getElementById('filter-status');
+        if (filterStatusEl) {
+            filterStatusEl.addEventListener('change', () => dismissPinnedProduct());
+        }
+
+        const filterCategoryEl = document.getElementById('filter-category');
+        if (filterCategoryEl) {
+            filterCategoryEl.addEventListener('change', () => dismissPinnedProduct());
+        }
+    });
+
+    function openDetailsModal(id, brand, productName, generic, category, description, unitOfMeasure, purchasePrice, supplier, stock, reorderPoint, baseUnit, packagingUnit, conversionQty) {
+        document.getElementById('details-med-sku-sub').innerText = `SKU: ${id}`;
+        document.getElementById('details-med-brand').innerText = brand;
+        document.getElementById('details-med-product').innerText = productName;
+        
+        const genericEl = document.getElementById('details-med-generic');
+        const genericLabelEl = document.getElementById('details-med-generic-label');
+        if (generic && generic !== 'None' && generic !== 'N/A' && generic !== '') {
+            genericEl.innerText = generic;
+            genericEl.style.display = 'inline';
+            genericLabelEl.style.display = 'inline';
+        } else {
+            genericEl.style.display = 'none';
+            genericLabelEl.style.display = 'none';
+        }
+        
+        document.getElementById('details-med-category').innerText = category;
+        
+        const bUnit = baseUnit || unitOfMeasure || 'Piece';
+        const bUnitEl = document.getElementById('details-med-base-unit');
+        if (bUnitEl) bUnitEl.innerText = bUnit;
+
+        document.getElementById('details-med-supplier').innerText = supplier;
+        const stockNum = parseInt(stock, 10) || 0;
+        document.getElementById('details-med-stock').innerText = `${stockNum.toLocaleString()} ${bUnit}${stockNum !== 1 && !bUnit.endsWith('s') ? 's' : ''}`;
+        document.getElementById('details-med-reorder').innerText = `${reorderPoint} ${bUnit}${reorderPoint != 1 && !bUnit.endsWith('s') ? 's' : ''}`;
+        
+        // Handle Details Size
+        const sizeEl = document.getElementById('details-med-size');
+        const sizeLabelEl = document.getElementById('details-med-size-label');
+        const charObj = parseCharacteristics(description);
+        if (charObj['Size']) {
+            sizeEl.innerText = formatSizeAbbreviation(charObj['Size']);
+            sizeEl.style.display = 'inline';
+            sizeLabelEl.style.display = 'inline';
+        } else {
+            sizeEl.style.display = 'none';
+            sizeLabelEl.style.display = 'none';
+        }
+
+        // Handle Details Dosage
+        const dosageEl = document.getElementById('details-med-dosage');
+        const dosageLabelEl = document.getElementById('details-med-dosage-label');
+        if (charObj['Dosage'] || charObj['Strength']) {
+            dosageEl.innerText = charObj['Dosage'] || charObj['Strength'];
+            dosageEl.style.display = 'inline';
+            dosageLabelEl.style.display = 'inline';
+        } else {
+            dosageEl.style.display = 'none';
+            dosageLabelEl.style.display = 'none';
+        }
+        
+        document.getElementById('details-medicine-modal').classList.add('active');
+    }
+
+    function closeDetailsModal() {
+        document.getElementById('details-medicine-modal').classList.remove('active');
+    }
+
+    function closeDetailsModalOnOverlay(e, overlay) {
+        if (e.target === overlay) {
+            closeDetailsModal();
+        }
+    }
+
+    function handleCategoryChange(selectElement, sizeGroupId, dosageGroupId) {
+        const catVal = selectElement ? selectElement.value : '';
+
+        // If this is the Add modal category dropdown
+        if (selectElement && selectElement.id === 'add-med-category') {
+            if (catVal === 'Medicines' || catVal === 'Vitamins & Supplements') {
+                initVariantSection('dosage');
+            } else if (catVal === 'Baby Care' || catVal === 'Medical Supplies') {
+                initVariantSection('size');
+            } else {
+                initVariantSection('none');
+            }
+            return;
+        }
+
+        // For Edit modal
+        const sizeGroup = document.getElementById(sizeGroupId);
+        const sizeSelect = sizeGroup ? sizeGroup.querySelector('select') : null;
+        const dosageGroup = document.getElementById(dosageGroupId);
+        const dosageInput = dosageGroup ? dosageGroup.querySelector('input') : null;
+        
+        if (catVal === 'Baby Care') {
+            if (sizeGroup) sizeGroup.style.display = 'block';
+            if (sizeSelect) sizeSelect.setAttribute('required', 'required');
+            if (dosageGroup) dosageGroup.style.display = 'none';
+            if (dosageInput) {
+                dosageInput.removeAttribute('required');
+                dosageInput.value = '';
+            }
+        } else if (catVal === 'Medicines' || catVal === 'Vitamins & Supplements') {
+            if (dosageGroup) dosageGroup.style.display = 'block';
+            if (dosageInput) dosageInput.setAttribute('required', 'required');
+            if (sizeGroup) sizeGroup.style.display = 'none';
+            if (sizeSelect) {
+                sizeSelect.removeAttribute('required');
+                sizeSelect.value = '';
+            }
+        } else {
+            if (sizeGroup) {
+                sizeGroup.style.display = 'none';
+                if (sizeSelect) {
+                    sizeSelect.removeAttribute('required');
+                    sizeSelect.value = '';
+                }
+            }
+            if (dosageGroup) {
+                dosageGroup.style.display = 'none';
+                if (dosageInput) {
+                    dosageInput.removeAttribute('required');
+                    dosageInput.value = '';
+                }
+            }
+        }
+        checkEditDuplicateProduct();
+    }
+
+    function updateSizeFieldVisibility() {
+        // Handled by handleCategoryChange and modal load function
+    }
+
+    // Set submit listeners to intercept and bundle variants into request form
+    document.addEventListener('DOMContentLoaded', () => {
+        // Initialize Add modal category options for the first supplier
+        const addSupSelect = document.getElementById('add-med-supplier');
+        if (addSupSelect && addSupSelect.options.length > 0) {
+            updateCategoryOptionsForSupplier('add', addSupSelect.value);
+        }
+
+        initAllSearchableSelects();
+
+        const addForm = document.querySelector('#add-medicine-modal form');
+        if (addForm) {
+            addForm.addEventListener('submit', function(e) {
+                const addSup = document.getElementById('add-med-supplier');
+                if (addSup && !addSup.value) {
+                    e.preventDefault();
+                    if (addSup._searchableWrap) {
+                        addSup._searchableWrap.classList.add('is-invalid');
+                        addSup._searchableWrap.querySelector('.searchable-select-input').focus();
+                    }
+                    return false;
+                }
+                const addCat = document.getElementById('add-med-category');
+                const newCatInp = document.getElementById('add-new-category-input');
+                const isNewCat = newCatInp && newCatInp.closest('#add-new-category-box') && newCatInp.closest('#add-new-category-box').style.display !== 'none';
+                if (!isNewCat && addCat && !addCat.value) {
+                    e.preventDefault();
+                    if (addCat._searchableWrap) {
+                        addCat._searchableWrap.classList.add('is-invalid');
+                        addCat._searchableWrap.querySelector('.searchable-select-input').focus();
+                    }
+                    return false;
+                }
+
+                const catSelect = this.querySelector('select[name="category"]');
+                const cat = (newCatInp && newCatInp.value.trim()) ? newCatInp.value.trim() : (catSelect ? catSelect.value : '');
+                
+                // Clear existing dynamic hidden inputs if re-submitting
+                this.querySelectorAll('input[name="product_variants[]"]').forEach(el => el.remove());
+
+                const variants = getCollectedVariants();
+                const typeInput = this.querySelector('#add-variant-type');
+                if (typeInput) {
+                    typeInput.value = (currentVariantType === 'none') ? '' : (currentVariantType || '');
+                }
+
+                if (variants.length > 0) {
+                    // Append individual hidden inputs for each variant
+                    variants.forEach(v => {
+                        const hInput = document.createElement('input');
+                        hInput.type = 'hidden';
+                        hInput.name = 'product_variants[]';
+                        hInput.value = v;
+                        this.appendChild(hInput);
+                    });
+                    
+                    const descInput = this.querySelector('input[name="description"]');
+                    if (descInput) {
+                        if (currentVariantType === 'dosage') {
+                            descInput.value = `Dosage: ${variants[0]}`;
+                        } else if (currentVariantType === 'size') {
+                            descInput.value = `Size: ${variants[0]}`;
+                        } else if (currentVariantType === 'both') {
+                            const parts = variants[0].split('|');
+                            const dPart = parts[0] ? `Dosage: ${parts[0]}` : '';
+                            const sPart = parts[1] ? `Size: ${parts[1]}` : '';
+                            descInput.value = [dPart, sPart].filter(Boolean).join(', ');
+                        }
+                    }
+                } else {
+                    const descInput = this.querySelector('input[name="description"]');
+                    if (descInput) descInput.value = '';
+                }
+            });
+        }
+
+        const editForm = document.querySelector('#edit-medicine-modal form');
+        if (editForm) {
+            editForm.addEventListener('submit', function(e) {
+                const editSup = document.getElementById('edit-med-supplier');
+                if (editSup && !editSup.value) {
+                    e.preventDefault();
+                    if (editSup._searchableWrap) {
+                        editSup._searchableWrap.classList.add('is-invalid');
+                        editSup._searchableWrap.querySelector('.searchable-select-input').focus();
+                    }
+                    return false;
+                }
+                const editCat = document.getElementById('edit-med-category');
+                const editNewCat = document.getElementById('edit-new-category-input');
+                const isEditNewCat = editNewCat && editNewCat.closest('#edit-new-category-box') && editNewCat.closest('#edit-new-category-box').style.display !== 'none';
+                if (!isEditNewCat && editCat && !editCat.value) {
+                    e.preventDefault();
+                    if (editCat._searchableWrap) {
+                        editCat._searchableWrap.classList.add('is-invalid');
+                        editCat._searchableWrap.querySelector('.searchable-select-input').focus();
+                    }
+                    return false;
+                }
+
+                const catSelect = this.querySelector('select[name="category"]');
+                const cat = (editNewCat && editNewCat.value.trim()) ? editNewCat.value.trim() : (catSelect ? catSelect.value : '');
+
+                const descInput = this.querySelector('input[name="description"]');
+                if (cat === 'Baby Care') {
+                    const sizeEl = this.querySelector('select[name="baby_size"]');
+                    const size = sizeEl ? sizeEl.value : '';
+                    if (descInput) descInput.value = size ? `Size: ${size}` : '';
+                } else if (cat === 'Medicines' || cat === 'Vitamins & Supplements') {
+                    const dosageEl = this.querySelector('input[name="med_dosage"]');
+                    const dosage = dosageEl ? dosageEl.value : '';
+                    if (descInput) descInput.value = dosage ? `Dosage: ${dosage}` : '';
+                } else {
+                    if (descInput) descInput.value = descInput.value || '';
+                }
+            });
+        }
+    });
+</script>
+
+<!-- Details Modal -->
+<div id="details-medicine-modal" class="modal-overlay" onclick="closeDetailsModalOnOverlay(event, this)">
+    <div class="modal-content" style="max-width: 500px;">
+        <button class="modal-close" onclick="closeDetailsModal()">&times;</button>
+        <div class="modal-header">
+            <h3>Product Details</h3>
+            <p id="details-med-sku-sub" style="font-size: 13px; font-weight: 700; color: #1e293b; margin-top: 4px;"></p>
+        </div>
+        <div class="modal-body" style="line-height: 1.6;">
+            <div style="display: grid; grid-template-columns: 140px 1fr; gap: 12px; margin-bottom: 8px; font-size: 13px;">
+                <strong>Brand:</strong> <span id="details-med-brand"></span>
+                <strong>Product Name:</strong> <span id="details-med-product"></span>
+                <strong id="details-med-generic-label">Generic Name:</strong> <span id="details-med-generic"></span>
+                <strong>Category:</strong> <span id="details-med-category"></span>
+                <strong>Base Unit (Stock Unit):</strong> <span id="details-med-base-unit" style="font-weight: 600;"></span>
+                <strong id="details-med-size-label" style="display: none;">Size:</strong> <span id="details-med-size" style="display: none;"></span>
+                <strong id="details-med-dosage-label" style="display: none;">Dosage:</strong> <span id="details-med-dosage" style="display: none;"></span>
+                <strong>Supplier:</strong> <span id="details-med-supplier"></span>
+                <strong>Current Stock:</strong> <span id="details-med-stock" style="font-weight: 600; color: #1e293b;"></span>
+                <strong>Reorder Point:</strong> <span id="details-med-reorder"></span>
+            </div>
+            <!-- Characteristics removed -->
+        </div>
+        <div class="modal-footer" style="padding-top: 16px;">
+            <button type="button" class="btn-primary" style="width: auto; padding: 8px 24px; font-size: 12px; border-radius: 20px;" onclick="closeDetailsModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
